@@ -18,3 +18,8 @@ firestore-debug.log
 # instead — this repo is public (GitHub Free doesn't support Pages on a
 # private repo), so this guards against ever re-adding it here.
 roadmap.md
+
+# Android release signing — never commit
+android/keystore.properties
+*.jks
+*.keystore
