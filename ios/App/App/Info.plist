@@ -20,28 +20,6 @@
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
 	<string>$(MARKETING_VERSION)</string>
-	<!--
-	  Lets a drive keep recording mileage and route while the app is
-	  backgrounded (the supervisor switches to Maps, etc.). "When In Use" is
-	  enough for this — iOS permits background location under it while this
-	  mode is declared and the blue status-bar indicator is showing. No
-	  "Always" authorization is requested; tracking still stops if the app is
-	  fully closed. See docs/background-drive-tracking-spec.md.
-	-->
-	<key>UIBackgroundModes</key>
-	<array>
-		<string>location</string>
-	</array>
-	<!--
-	  Google Sign-In (via @capacitor-firebase/authentication) redirects back
-	  into the app through this custom URL scheme once the user picks an
-	  account — this is the REVERSED_CLIENT_ID from GoogleService-Info.plist
-	  (that file itself lives only on each developer's machine, not in this
-	  repo, so this value has to be hardcoded here instead of read from it).
-	  Without it, Firebase's iOS SDK crashes at launch with
-	  NSInvalidArgumentException: "Your app is missing support for the
-	  following URL schemes: ...".
-	-->
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>
@@ -57,6 +35,13 @@
 	<true/>
 	<key>NSFaceIDUsageDescription</key>
 	<string>Student Drive Log can use Face ID to unlock the app instead of your password. This never replaces your account's password or changes who can sign in.</string>
+	<!--
+	  Required by App Store validation (ITMS-90683): the background-geolocation
+	  plugin links location APIs that include "Always" authorization. The app
+	  itself only requests "When In Use" (see below) and never asks for Always.
+	-->
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>Student Drive Log uses your location only while you are timing a practice drive, including if you switch to another app during the drive, to measure the distance driven and draw the route map on the saved log. It does not track you when no drive is being timed. You can decline and enter mileage by hand.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>Student Drive Log uses your location only while you are timing a practice drive, to measure the distance driven and draw the route map on the saved log. You can decline and enter mileage by hand.</string>
 	<key>NSMotionUsageDescription</key>
@@ -80,6 +65,10 @@
 			</array>
 		</dict>
 	</dict>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>location</string>
+	</array>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
 	<key>UIMainStoryboardFile</key>
