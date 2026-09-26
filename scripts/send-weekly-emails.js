@@ -15,6 +15,10 @@
  *   - Firestore mirroring the app's students + logs
  *   - Repo secrets: FIREBASE_SERVICE_ACCOUNT (JSON), RESEND_API_KEY
  *
+ * Emails deliberately contain no maps, routes, or start/end locations: the
+ * recipients include minors, and repeated route imagery would expose their
+ * location patterns. Only aggregate hours/mileage and drive type are included.
+ *
  * Student names and drive fields come from user input and land in an HTML
  * body delivered to everyone with access to the dashboard, so every value
  * interpolated into `html` below is escaped and the subject is stripped of
@@ -25,15 +29,14 @@
  *                                                 ownerEmail, sharedWithEmails,
  *                                                 lastProgressEmailAt }
  *   users/{uid}/students/{studentId}/logs/*  -> { startTime, durationMinutes, timeOfDay,
- *                                                 type, distanceMiles, startLocation,
- *                                                 endLocation, route }
+ *                                                 type, distanceMiles }
  *   emailPreferences/{email}                 -> { weeklyEmailOptOut }
  */
 import { initializeApp, cert } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
 import { Resend } from 'resend';
 import { STATE_REQUIREMENTS } from '../src/data/stateRequirements.js';
-import { renderRouteMapPng, renderGaugePng } from './lib/staticImages.js';
+import { renderGaugePng } from './lib/staticImages.js';
 import { escapeHtml, sanitizeHeader } from '../src/utils/escapeHtml.js';
 
 const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
@@ -142,20 +145,12 @@ async function main() {
         ? await renderGaugePng({ label: 'Night hours', value: night, goal: nightGoalMinutes, color: '#6C5CE7' })
         : null;
 
-    const driveMapPngs = await Promise.all(
-      recentLogs.map((d) =>
-        d.startLocation && d.endLocation
-          ? renderRouteMapPng({ start: d.startLocation, end: d.endLocation, route: d.route }, { width: 500, height: 220 })
-          : null
-      )
-    );
-
     const driveRows = recentLogs
-      .map((d, i) => {
+      .map((d) => {
         const meta = `${DRIVE_TYPE_LABELS[d.type] ?? d.type} · ${d.timeOfDay === 'night' ? 'Night' : 'Day'}${
           d.distanceMiles != null ? ` · ${d.distanceMiles} mi` : ''
         }`;
-        return { date: fmtDate(d), meta, duration: fmt(d.durationMinutes), mapCid: driveMapPngs[i] ? `drivemap${i}` : null };
+        return { date: fmtDate(d), meta, duration: fmt(d.durationMinutes) };
       });
 
     const driveTextBlock = driveRows.length
@@ -171,7 +166,6 @@ async function main() {
                 <div><strong>${escapeHtml(r.date)}</strong><div style="color:#7C86A0;font-size:12px;text-transform:capitalize;">${escapeHtml(r.meta)}</div></div>
                 <div style="font-weight:700;color:#2F6FDE;">${escapeHtml(r.duration)}</div>
               </div>
-              ${r.mapCid ? `<img src="cid:${r.mapCid}" width="500" style="width:100%;max-width:500px;border-radius:8px;margin-top:10px;display:block;" alt="Drive route map" />` : ''}
             </div>`
           )
           .join('')
@@ -200,9 +194,6 @@ async function main() {
     });
     const attachments = [toInlineAttachment('gauge-total.png', totalGaugePng, 'gaugetotal')];
     if (nightGaugePng) attachments.push(toInlineAttachment('gauge-night.png', nightGaugePng, 'gaugenight'));
-    driveMapPngs.forEach((png, i) => {
-      if (png) attachments.push(toInlineAttachment(`drive-map-${i}.png`, png, `drivemap${i}`));
-    });
 
     for (const to of recipients) {
       const unsubUrl = unsubscribeUrl(to);
