@@ -347,7 +347,7 @@ export default function Login() {
   if (pendingVerificationEmail) {
     return (
       <div className="login-screen">
-        <img src={`${import.meta.env.BASE_URL}logo.png`} alt="Student Driver Log" className="login-logo" />
+        <img src={`${import.meta.env.BASE_URL}logo.png`} alt="Student Drive Log" className="login-logo" />
         <h1 className="login-title">Check your email</h1>
         <p style={{ color: 'var(--muted)', textAlign: 'center', maxWidth: 340, marginTop: 8 }}>
           We sent a verification link to <strong>{pendingVerificationEmail}</strong>. Click it to finish
@@ -375,8 +375,8 @@ export default function Login() {
 
   return (
     <div className="login-screen">
-      <img src={`${import.meta.env.BASE_URL}logo.png`} alt="Student Driver Log" className="login-logo" />
-      <h1 className="login-title">Student Driver Log</h1>
+      <img src={`${import.meta.env.BASE_URL}logo.png`} alt="Student Drive Log" className="login-logo" />
+      <h1 className="login-title">Student Drive Log</h1>
 
       {sessionKickedMessage && (
         <p style={{ color: '#F2A63C', fontSize: 13, textAlign: 'center', maxWidth: 340, marginTop: 4, marginBottom: 12 }}>

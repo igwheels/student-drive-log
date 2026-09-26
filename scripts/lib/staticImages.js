@@ -10,7 +10,7 @@ export async function renderGaugePng({ label, value, goal, color = '#2F6FDE', si
   const height = size + 34;
   const canvas = createCanvas(size, height);
   const ctx = canvas.getContext('2d');
-  ctx.fillStyle = '#141C2E';
+  ctx.fillStyle = '#0A2A5E';
   ctx.fillRect(0, 0, size, height);
 
   const pct = goal > 0 ? Math.min(value / goal, 1) : 0;

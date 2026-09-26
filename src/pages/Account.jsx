@@ -188,7 +188,7 @@ export default function Account() {
     setBiometricBusy(true);
     // Generic, like the enrollment prompt's equivalent call — this text
     // only surfaces inside the OS's own system dialog, not this page.
-    const result = await authenticateWithBiometrics('Confirm to enable biometric unlock for Student Driver Log');
+    const result = await authenticateWithBiometrics('Confirm to enable biometric unlock for Student Drive Log');
     setBiometricBusy(false);
     if (result.ok) {
       setBiometricEnabled(true);

@@ -7,7 +7,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>en</string>
 	<key>CFBundleDisplayName</key>
-	<string>Student Driver Log</string>
+	<string>Student Drive Log</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -56,11 +56,11 @@
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>NSFaceIDUsageDescription</key>
-	<string>Student Driver Log can use Face ID to unlock the app instead of your password. This never replaces your account's password or changes who can sign in.</string>
+	<string>Student Drive Log can use Face ID to unlock the app instead of your password. This never replaces your account's password or changes who can sign in.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>Student Driver Log uses your location only while you are timing a practice drive, to measure the distance driven and draw the route map on the saved log. You can decline and enter mileage by hand.</string>
+	<string>Student Drive Log uses your location only while you are timing a practice drive, to measure the distance driven and draw the route map on the saved log. You can decline and enter mileage by hand.</string>
 	<key>NSMotionUsageDescription</key>
-	<string>Student Driver Log reads motion sensors only while you are timing a practice drive, to spot hard braking and harsh turns and give the supervising adult a heads-up. This data stays on your device. You can decline and still time drives normally.</string>
+	<string>Student Drive Log reads motion sensors only while you are timing a practice drive, to spot hard braking and harsh turns and give the supervising adult a heads-up. This data stays on your device. You can decline and still time drives normally.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

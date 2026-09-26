@@ -1,15 +1,14 @@
 /**
  * Generate the native app-icon source images from public/logo.png.
  *
- * public/logo.png is the brand logo: the navy rounded-square artwork
- * (white car + checklist + "Student Driver Log") sitting on a white
- * margin, with its own baked-in rounded corners. A native app icon has to
- * be a full-bleed opaque square — iOS and Android apply their own corner
- * mask — so this script trims the white margin, squares the art, cuts the
- * baked corners back to transparent, and composites it onto a solid brand
- * navy field. The corner-cut radius is ~iOS's own squircle, so the flat
- * navy that shows through at the corners is exactly the region the OS
- * clips anyway.
+ * public/logo.png is the brand logo: the blue rounded-square artwork
+ * (white car + checklist, no wordmark) filling the whole image edge to
+ * edge, with rounded corners baked in as transparent pixels. A native app
+ * icon has to be a full-bleed opaque square — iOS and Android apply their
+ * own corner mask — so this script squares the art, cuts the corners back
+ * to transparent at ~iOS's own squircle radius, and composites it onto a
+ * solid navy field. The flat navy that shows through at the corners is
+ * exactly the region the OS clips anyway.
  *
  * Outputs (consumed by `npx capacitor-assets generate`):
  *   resources/icon.png            1024²  opaque, full-bleed  (iOS + legacy Android)
@@ -29,10 +28,16 @@ import { mkdir } from 'node:fs/promises';
 const SRC = 'public/logo.png';
 const OUT = 'resources';
 const SIZE = 1024;
-// Brand navy — matches --navy in src/styles/theme.css and the manifest
-// theme_color. The logo's own field is a near-black navy gradient; this
-// sits behind the trimmed corners, under the OS mask.
-const NAVY = '#141C2E';
+// Brand blue — matches --navy in src/styles/theme.css and the manifest
+// theme_color, and sits mid-way in the logo's own gradient (LOGO_TOP →
+// LOGO_BOTTOM below). Used for the launch-screen field and behind the
+// trimmed corners of the iOS icon, under the OS mask.
+const NAVY = '#0A2A5E';
+// Top and bottom edge colours of the logo's blue gradient, sampled from
+// public/logo.png; the Android adaptive background layer repeats it so the
+// inset foreground art blends into it.
+const LOGO_TOP = '#0e3574';
+const LOGO_BOTTOM = '#041a43';
 const CORNER_RADIUS = Math.round(SIZE * 0.235);
 
 const cornerMask = Buffer.from(
@@ -41,11 +46,8 @@ const cornerMask = Buffer.from(
     `</svg>`,
 );
 
-// Trim the white margin, square it off (cover-crops a few px of the
-// rounded-corner zone top/bottom), then knock the baked corners out to
-// transparent.
+// Square it off, then knock the corners out to transparent.
 const art = await sharp(SRC)
-  .trim({ background: '#ffffff', threshold: 40 })
   .resize(SIZE, SIZE, { fit: 'cover', position: 'center' })
   .ensureAlpha()
   .composite([{ input: cornerMask, blend: 'dest-in' }])
@@ -64,7 +66,15 @@ await sharp({ create: { width: SIZE, height: SIZE, channels: 4, background: NAVY
   .toFile(`${OUT}/icon.png`);
 
 // Android adaptive background layer.
-await sharp({ create: { width: SIZE, height: SIZE, channels: 3, background: NAVY } })
+await sharp(
+  Buffer.from(
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${SIZE}" height="${SIZE}">` +
+      `<defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1">` +
+      `<stop offset="0" stop-color="${LOGO_TOP}"/><stop offset="1" stop-color="${LOGO_BOTTOM}"/>` +
+      `</linearGradient></defs><rect width="${SIZE}" height="${SIZE}" fill="url(#g)"/></svg>`,
+  ),
+)
+  .removeAlpha()
   .png()
   .toFile(`${OUT}/icon-background.png`);
 

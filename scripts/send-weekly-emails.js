@@ -201,7 +201,7 @@ async function main() {
         (async () => {
           const { error } = await resend.emails.send({
             to,
-            from: `Student Driver Log <${FROM_EMAIL}>`,
+            from: `Student Drive Log <${FROM_EMAIL}>`,
             replyTo: FROM_EMAIL,
             subject: sanitizeHeader(`🚗 ${student.firstName}'s Weekly Driving Progress`),
             text: `${student.firstName}'s Weekly Driving Progress

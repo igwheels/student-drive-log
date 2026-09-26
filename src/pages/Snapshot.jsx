@@ -49,7 +49,7 @@ export default function Snapshot() {
 
   return (
     <div className="page snapshot-page">
-      <img src={`${import.meta.env.BASE_URL}logo.png`} alt="Student Driver Log" className="snapshot-logo" />
+      <img src={`${import.meta.env.BASE_URL}logo.png`} alt="Student Drive Log" className="snapshot-logo" />
 
       {!snapshot ? (
         <p style={{ color: 'var(--muted)' }}>This shared link is invalid or has expired.</p>

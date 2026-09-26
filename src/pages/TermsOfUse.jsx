@@ -14,7 +14,7 @@ export default function TermsOfUse() {
       <p className="legal-updated">Last updated: February 2026</p>
 
       <p>
-        These Terms of Use ("Terms") govern your use of Student Driver Log (the "Service"), operated
+        These Terms of Use ("Terms") govern your use of Student Drive Log (the "Service"), operated
         by{' '}
         <a href="https://www.devworksllc.com" target="_blank" rel="noopener noreferrer">
           DevWorks LLC

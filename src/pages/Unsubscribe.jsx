@@ -44,7 +44,7 @@ export default function Unsubscribe() {
 
   return (
     <div className="page snapshot-page">
-      <img src={`${import.meta.env.BASE_URL}logo.png`} alt="Student Driver Log" className="snapshot-logo" />
+      <img src={`${import.meta.env.BASE_URL}logo.png`} alt="Student Drive Log" className="snapshot-logo" />
       <h2 style={{ fontSize: 20, marginBottom: 12 }}>Weekly progress emails</h2>
 
       {status === 'loading' && <p style={{ color: 'var(--muted)' }}>Loading…</p>}
@@ -76,7 +76,7 @@ export default function Unsubscribe() {
       )}
 
       <Link to="/" className="btn btn-ghost" style={{ marginTop: 24, textDecoration: 'none' }}>
-        Back to Student Driver Log
+        Back to Student Drive Log
       </Link>
     </div>
   );

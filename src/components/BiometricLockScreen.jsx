@@ -39,7 +39,7 @@ export default function BiometricLockScreen({ onUnlock }) {
   const attempt = async (retriesLeft = 3) => {
     setStatus('prompting');
     setFailureMessage('');
-    const result = await authenticateWithBiometrics('Unlock Student Driver Log');
+    const result = await authenticateWithBiometrics('Unlock Student Drive Log');
     if (result.ok) {
       onUnlock();
       return;
@@ -90,8 +90,8 @@ export default function BiometricLockScreen({ onUnlock }) {
 
   return (
     <div className="biometric-lock-overlay">
-      <img src={`${import.meta.env.BASE_URL}logo.png`} alt="Student Driver Log" className="login-logo" />
-      <h1 className="login-title">Student Driver Log</h1>
+      <img src={`${import.meta.env.BASE_URL}logo.png`} alt="Student Drive Log" className="login-logo" />
+      <h1 className="login-title">Student Drive Log</h1>
       <p style={{ color: 'var(--muted)', textAlign: 'center', maxWidth: 320, marginTop: -16, marginBottom: 24 }}>
         {status === 'prompting' ? `Unlock with ${label} to continue.` : 'Locked'}
       </p>

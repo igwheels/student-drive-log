@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <!--
-  App-level privacy manifest for Student Driver Log.
+  App-level privacy manifest for Student Drive Log.
 
   Mirrors the code audit in docs/privacy-labels.md. The embedded SDKs
   (Capacitor, Firebase Auth/Core, GoogleSignIn, GTMSessionFetcher, …) ship

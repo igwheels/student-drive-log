@@ -1,4 +1,4 @@
-// Firestore security rules for Student Driver Log.
+// Firestore security rules for Student Drive Log.
 //
 // Deployed via the Firebase CLI (`npx firebase-tools deploy --only
 // firestore:rules --project student-driver-log-b1924`; see the root

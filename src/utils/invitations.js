@@ -24,13 +24,13 @@ export const generateSignupLink = (email, appUrl) => {
 export const generateInvitationEmailContent = (invitation, appUrl) => {
   const signupUrl = generateSignupLink(invitation.email, appUrl);
 
-  const text = `${invitation.ownerName} (${invitation.ownerEmail}) shared ${invitation.studentName}'s Student Driver Log with you.
+  const text = `${invitation.ownerName} (${invitation.ownerEmail}) shared ${invitation.studentName}'s Student Drive Log with you.
 
 Sign in with this email address (${invitation.email}) to view driving hours, progress toward state requirements, and log drives yourself. If you don't have an account yet, just enter this email and a password to create one — access is granted automatically.
 
-Open Student Driver Log: ${signupUrl}
+Open Student Drive Log: ${signupUrl}
 
-This is an automatic message from Student Driver Log. If you didn't expect this, you can safely ignore it.`;
+This is an automatic message from Student Drive Log. If you didn't expect this, you can safely ignore it.`;
 
   return {
     subject: sanitizeHeader(
@@ -39,11 +39,11 @@ This is an automatic message from Student Driver Log. If you didn't expect this,
     text,
     html: `
       <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto;">
-        <h2 style="color: #141C2E; margin-bottom: 16px;">You've got access to a Student Driver Log!</h2>
+        <h2 style="color: #0A2A5E; margin-bottom: 16px;">You've got access to a Student Drive Log!</h2>
 
         <p style="color: #4B5563; line-height: 1.6; margin-bottom: 16px;">
           <strong>${escapeHtml(invitation.ownerName)}</strong> (${escapeHtml(invitation.ownerEmail)}) shared
-          <strong> ${escapeHtml(invitation.studentName)}</strong>'s Student Driver Log with you.
+          <strong> ${escapeHtml(invitation.studentName)}</strong>'s Student Drive Log with you.
         </p>
 
         <p style="color: #4B5563; line-height: 1.6; margin-bottom: 24px;">
@@ -62,13 +62,13 @@ This is an automatic message from Student Driver Log. If you didn't expect this,
             border-radius: 6px;
             font-weight: 600;
             font-size: 16px;
-          ">Open Student Driver Log</a>
+          ">Open Student Drive Log</a>
         </p>
 
         <hr style="border: none; border-top: 1px solid #E5E7EB; margin: 24px 0;" />
 
         <p style="color: #9CA3AF; font-size: 12px; margin: 0;">
-          This is an automatic message from Student Driver Log. If you didn't expect this, you can safely ignore it.
+          This is an automatic message from Student Drive Log. If you didn't expect this, you can safely ignore it.
         </p>
       </div>
     `,

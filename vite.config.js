@@ -44,11 +44,11 @@ export default defineConfig({
         cleanupOutdatedCaches: true,
       },
       manifest: {
-        name: 'Student Driver Log',
-        short_name: 'Driver Log',
+        name: 'Student Drive Log',
+        short_name: 'Drive Log',
         description: "Log a student driver's supervised practice hours and export state DMV forms.",
-        theme_color: '#141C2E',
-        background_color: '#141C2E',
+        theme_color: '#0A2A5E',
+        background_color: '#0A2A5E',
         display: 'standalone',
         start_url: '/',
         icons: [

@@ -7,7 +7,7 @@
  * *other* people from this project's own sending address. Without escaping,
  * anyone who can create an account can put arbitrary markup — a link, a
  * hidden block, a whole fake message — into mail that arrives looking like
- * it came from Student Driver Log. Every interpolation of user-controlled
+ * it came from Student Drive Log. Every interpolation of user-controlled
  * text into an email's HTML must go through escapeHtml().
  */
 

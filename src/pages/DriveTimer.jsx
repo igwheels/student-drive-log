@@ -246,7 +246,7 @@ export default function DriveTimer() {
       <p className="timer-gps-hint">
         {gpsNotice(gps).hint ??
           (Capacitor.isNativePlatform()
-            ? 'Mileage and route keep recording if you switch apps. Tracking still stops if you close Student Driver Log.'
+            ? 'Mileage and route keep recording if you switch apps. Tracking still stops if you close Student Drive Log.'
             : 'Keep this screen open for accurate GPS mileage — tracking pauses if you switch apps or lock your phone.')}
       </p>
       {/* The browser's own wording for the failure. Kept small and last: it's

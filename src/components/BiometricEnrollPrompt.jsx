@@ -41,7 +41,7 @@ export default function BiometricEnrollPrompt({ uid, label, onDone }) {
     // system prompt (a one-line caption under the Face ID/fingerprint
     // icon), not the app's UI, so it doesn't need label to read
     // naturally the way the app's own copy below does.
-    const result = await authenticateWithBiometrics('Confirm to enable biometric unlock for Student Driver Log');
+    const result = await authenticateWithBiometrics('Confirm to enable biometric unlock for Student Drive Log');
     setBusy(false);
     if (result.ok) {
       finish(true);

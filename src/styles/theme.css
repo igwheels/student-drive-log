@@ -1,5 +1,5 @@
 /* ============================================================
-   Student Driver Log — design tokens
+   Student Drive Log — design tokens
    Concept: the app borrows two real artifacts from a learner's
    world — a car's instrument cluster (the dashboard gauges) and
    a permit/ID card (the student list) — instead of generic
@@ -81,9 +81,9 @@
 
 :root {
   /* Color */
-  --navy: #141C2E;
-  --navy-light: #1F2940;
-  --navy-lighter: #2A3654;
+  --navy: #0A2A5E;
+  --navy-light: #133B7A;
+  --navy-lighter: #1D4E96;
   --blue: #2F6FDE;
   --blue-soft: #7FA8F0;
   --amber: #F2A63C;

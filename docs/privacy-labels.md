@@ -354,7 +354,7 @@ archive time and confirm the aggregate matches the nutrition-label answers.
 > your speed against the posted limit."
 
 No speed/speed-limit feature exists. Now:
-> "Student Driver Log uses your location only while you are timing a practice
+> "Student Drive Log uses your location only while you are timing a practice
 > drive, to measure the distance driven and draw the route map on the saved
 > log. You can decline and enter mileage by hand."
 
@@ -411,7 +411,7 @@ disclosure requirement is met once the policy ships. No form field to fill.
 |------|-----|-----------------|
 | Signed **Data Processing Agreement** with Resend | Emails carry a minor's first name, drive summaries, and route-map images | resend.com — request via support / legal |
 | Resend's current **sub-processor list** | To keep §6's "processes under its own privacy policy" honest and to answer any App Review follow-up | Resend Trust/Legal page |
-| **Sender-domain verification** for `devworksllc.com` (SPF/DKIM) | Both scripts send `from: Student Driver Log <ian@devworksllc.com>` — deliverability + anti-spoofing | Resend dashboard → Domains |
+| **Sender-domain verification** for `devworksllc.com` (SPF/DKIM) | Both scripts send `from: Student Drive Log <ian@devworksllc.com>` — deliverability + anti-spoofing | Resend dashboard → Domains |
 | Resend's **content/log retention** window | So a future Privacy Policy §9 line about "email delivery logs" is accurate if you add one | Resend docs / DPA |
 | Confirmation of **data location** (US) | §5 says data is stored in the US; Resend processing should be consistent | Resend DPA / Trust page |
 

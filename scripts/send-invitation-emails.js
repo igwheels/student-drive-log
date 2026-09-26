@@ -41,7 +41,7 @@ async function main() {
       const { subject, text, html } = generateInvitationEmailContent(invitation, APP_URL);
       const { error } = await resend.emails.send({
         to: invitation.email,
-        from: `Student Driver Log <${FROM_EMAIL}>`,
+        from: `Student Drive Log <${FROM_EMAIL}>`,
         replyTo: FROM_EMAIL,
         subject,
         text,

@@ -1,6 +1,6 @@
 {
   "appId": "com.devworksllc.sdl",
-  "appName": "Student Driver Log",
+  "appName": "Student Drive Log",
   "webDir": "dist",
   "android": {
     "//": "background-geolocation: the modern bridge halts background location after ~5 min (capacitor-community/background-geolocation#89).",

@@ -1,6 +1,6 @@
-# Student Driver Log — Web
+# Student Drive Log — Web
 
-A browser version of Student Driver Log, built with **React + Vite**, deployable for free on **GitHub Pages**. It mirrors the React Native app (same students, logs, gauges, PDF affidavit) with web-native equivalents for the platform-specific pieces (storage, PDF export).
+A browser version of Student Drive Log, built with **React + Vite**, deployable for free on **GitHub Pages**. It mirrors the React Native app (same students, logs, gauges, PDF affidavit) with web-native equivalents for the platform-specific pieces (storage, PDF export).
 
 ## Design concept
 

@@ -62,7 +62,7 @@ export default function App() {
   const isDashboard = location.pathname.startsWith('/dashboard');
   const title = TITLES[location.pathname] ||
     (isDashboard ? 'Dashboard'
-    : location.pathname.startsWith('/log-drive') ? 'Log a Drive' : 'Student Driver Log');
+    : location.pathname.startsWith('/log-drive') ? 'Log a Drive' : 'Student Drive Log');
 
   // On a student's dashboard, share a read-only snapshot of their progress
   // instead of the app's own link.
@@ -115,7 +115,7 @@ export default function App() {
             style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
             title="Go to home"
           >
-            <img src={`${import.meta.env.BASE_URL}logo.png`} alt="Student Driver Log" />
+            <img src={`${import.meta.env.BASE_URL}logo.png`} alt="Student Drive Log" />
           </button>
           <span className="title">{title}</span>
           <div style={{ flex: 1 }} />

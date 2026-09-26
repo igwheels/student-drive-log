@@ -19,7 +19,7 @@ export default function PrivacyPolicy() {
           DevWorks LLC
         </a>{' '}
         ("we," "us," or "our") collects, uses, and
-        protects information in Student Driver Log (the "Service"). Because this Service is used to
+        protects information in Student Drive Log (the "Service"). Because this Service is used to
         record information about student drivers — who are often minors — we have tried to keep what
         we collect to the minimum needed to make it work.
       </p>
