@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "build:ios": "vite build --mode ios && cap sync ios",
     "preview": "vite preview",
     "icons": "node scripts/make-app-icon.mjs && capacitor-assets generate --ios --android --assetPath resources && cap sync",
     "replay-telematics": "node scripts/replay-telematics.mjs"
