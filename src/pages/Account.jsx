@@ -10,7 +10,7 @@ import {
   reauthenticateWithPopup,
   GoogleAuthProvider,
 } from 'firebase/auth';
-import { watchLocationPermissionStatus, requestLocationPermission, probeLocationAccess } from '../utils/geo';
+import { watchLocationPermissionStatus, probeLocationAccess } from '../utils/geo';
 import {
   getWeeklyEmailOptOut,
   setWeeklyEmailOptOut,
@@ -353,9 +353,20 @@ export default function Account() {
                 </p>
               )}
 
-              {locationStatus === 'prompt' && (
-                <button className="btn btn-outline" onClick={requestLocationPermission}>
-                  Allow location access
+              {locationStatus === 'prompt' && probe?.state !== 'working' && (
+                // runProbe, not requestLocationPermission: both ask for a
+                // position (which is what actually triggers the OS/WebView
+                // permission prompt), but only the probe reports back what
+                // happened. requestLocationPermission is fire-and-forget, so
+                // this card used to just sit on "Not yet asked" after a
+                // click — it was relying on the Permissions API's onchange
+                // event to notice the grant, which Android's WebView doesn't
+                // reliably fire (see watchLocationPermissionStatus). The
+                // probe?.state check hides this once the probe below has
+                // already confirmed it's working, even though locationStatus
+                // itself may never flip to 'granted' on Android.
+                <button className="btn btn-outline" onClick={runProbe} disabled={probing}>
+                  {probing ? 'Checking…' : 'Allow location access'}
                 </button>
               )}
               {showCheckButton && (
