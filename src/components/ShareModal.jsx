@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import { studentHasFamilyPack } from '../utils/entitlements';
 
 export default function ShareModal({ studentId, student, onClose, onShare }) {
   const { shareStudent } = useApp();
+  const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -62,18 +64,26 @@ export default function ShareModal({ studentId, student, onClose, onShare }) {
   };
 
   // Free-tier student: don't present a form that's guaranteed to fail on
-  // submit. Family Pack isn't purchasable in the app yet, so the message
-  // says that plainly rather than pointing at an upgrade button to nowhere.
+  // submit. Point at the Account page's Family Pack section instead.
   if (!canShare) {
     return (
       <div className="modal-backdrop" onClick={onClose}>
         <div className="modal-card" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 400 }}>
           <h3 style={{ fontSize: 18, marginBottom: 16 }}>Share {student.firstName}'s Profile</h3>
           <p style={{ fontSize: 14, color: 'var(--navy)' }}>
-            Sharing a dashboard with another parent or supervisor is a Family Pack feature. Family Pack isn't
-            available to purchase in the app yet — check back soon.
+            Sharing a dashboard with another parent or supervisor is a Family Pack feature.
           </p>
-          <button className="btn btn-primary" style={{ marginTop: 16, width: '100%' }} onClick={onClose}>
+          <button
+            className="btn btn-primary"
+            style={{ marginTop: 16, width: '100%' }}
+            onClick={() => {
+              onClose();
+              navigate('/account');
+            }}
+          >
+            Buy Family Pack
+          </button>
+          <button className="btn btn-outline" style={{ marginTop: 10, width: '100%' }} onClick={onClose}>
             Close
           </button>
         </div>

@@ -96,8 +96,11 @@ export default function Students() {
       </button>
       {atFreeStudentLimit && (
         <p style={{ color: 'var(--muted)', fontSize: 12, marginTop: 8 }}>
-          Free accounts are limited to one student driver. Family Pack (unlimited students) isn't available to
-          purchase in the app yet.
+          Free accounts are limited to one student driver.{' '}
+          <a href="#" onClick={(e) => { e.preventDefault(); navigate('/account'); }}>
+            Buy Family Pack
+          </a>{' '}
+          to add more.
         </p>
       )}
     </div>

@@ -32,7 +32,7 @@ export default function AddStudent() {
   const createStudent = async () => {
     if (atFreeStudentLimit) {
       setError(
-        "Free accounts are limited to one student driver. Family Pack removes that limit — it isn't available to purchase in the app yet, but it's coming."
+        'Free accounts are limited to one student driver. Buy Family Pack on your Account page to remove that limit.'
       );
       return;
     }

@@ -12,7 +12,11 @@
 // client as functions/unimplemented rather than silently granting
 // entitlement.
 //
-// payload shape expected once implemented: { purchaseToken, packageName }
+// payload shape (from src/utils/entitlements.js, via @capgo/native-purchases
+// — chosen 2026-09-30: free, no third-party backend, native StoreKit
+// 2/Play Billing): { purchaseToken, packageName }. packageName is hardcoded
+// client-side to com.devworksllc.sdl (see ANDROID_PACKAGE_NAME there) —
+// keep both in sync if the applicationId ever changes.
 export async function verifyPlayReceipt(payload) {
   throw new Error('Play Store purchase verification is not implemented yet.');
 }

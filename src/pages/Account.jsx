@@ -10,7 +10,9 @@ import {
   reauthenticateWithPopup,
   GoogleAuthProvider,
 } from 'firebase/auth';
+import { Capacitor } from '@capacitor/core';
 import { watchLocationPermissionStatus, probeLocationAccess } from '../utils/geo';
+import { getFamilyPackProduct, purchaseFamilyPack } from '../utils/entitlements';
 import {
   getWeeklyEmailOptOut,
   setWeeklyEmailOptOut,
@@ -80,7 +82,7 @@ const LOCATION_PROBE_INFO = {
 };
 
 export default function Account() {
-  const { user, students, deleteStudent, deleteSessionClaim, logout } = useApp();
+  const { user, students, deleteStudent, deleteSessionClaim, logout, hasFamilyPack, restorePurchases } = useApp();
   const navigate = useNavigate();
 
   const [resetStatus, setResetStatus] = useState('');
@@ -90,6 +92,53 @@ export default function Account() {
 
   const [probe, setProbe] = useState(null);
   const [probing, setProbing] = useState(false);
+
+  const [familyPackProduct, setFamilyPackProduct] = useState(null);
+  const [purchasing, setPurchasing] = useState(false);
+  const [purchaseError, setPurchaseError] = useState('');
+  const [restoring, setRestoring] = useState(false);
+  const [restoreStatus, setRestoreStatus] = useState('');
+
+  // Fetches the live price to display — required by both stores' review
+  // guidelines, see getFamilyPackProduct. Skipped once already entitled,
+  // and silently left null if unavailable (e.g. no store account signed
+  // in), in which case the button falls back to a static "$9.99".
+  useEffect(() => {
+    if (hasFamilyPack || !Capacitor.isNativePlatform()) return;
+    getFamilyPackProduct().then(setFamilyPackProduct);
+  }, [hasFamilyPack]);
+
+  const handleBuyFamilyPack = async () => {
+    setPurchaseError('');
+    setPurchasing(true);
+    try {
+      await purchaseFamilyPack();
+      // hasFamilyPack flips on its own via AppContext's live entitlement
+      // subscription once the server grants it — nothing to set here.
+    } catch (e) {
+      setPurchaseError(
+        e.code === 'functions/unimplemented'
+          ? 'Family Pack purchases aren’t live yet — check back soon.'
+          : e.message || 'Purchase failed.'
+      );
+    } finally {
+      setPurchasing(false);
+    }
+  };
+
+  const handleRestorePurchases = async () => {
+    setPurchaseError('');
+    setRestoreStatus('');
+    setRestoring(true);
+    try {
+      await restorePurchases();
+      setRestoreStatus('Restored — Family Pack is now active.');
+    } catch (e) {
+      setRestoreStatus(e.message || 'Nothing to restore.');
+    } finally {
+      setRestoring(false);
+    }
+  };
 
   const runProbe = () => {
     setProbing(true);
@@ -377,6 +426,40 @@ export default function Account() {
             </>
           );
         })()}
+      </section>
+
+      <section style={{ borderTop: '1px solid var(--line)', paddingTop: 24, marginBottom: 32 }}>
+        <h3 style={{ fontSize: 16, marginBottom: 10 }}>Family Pack</h3>
+        {hasFamilyPack ? (
+          <p style={{ fontSize: 14, color: 'var(--success)', fontWeight: 700 }}>
+            Active — unlimited students, and you can share a dashboard with another supervisor.
+          </p>
+        ) : Capacitor.isNativePlatform() ? (
+          <>
+            <p style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 12 }}>
+              One-time purchase. Removes the one-student limit and lets you share a dashboard with
+              another parent or supervisor.
+            </p>
+            {purchaseError && (
+              <p style={{ fontSize: 13, color: 'var(--danger)', marginBottom: 12 }}>{purchaseError}</p>
+            )}
+            {restoreStatus && (
+              <p style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 12 }}>{restoreStatus}</p>
+            )}
+            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+              <button className="btn btn-dark" onClick={handleBuyFamilyPack} disabled={purchasing}>
+                {purchasing ? 'Processing…' : `Buy Family Pack — ${familyPackProduct?.priceString || '$9.99'}`}
+              </button>
+              <button className="btn btn-outline" onClick={handleRestorePurchases} disabled={restoring}>
+                {restoring ? 'Restoring…' : 'Restore Purchases'}
+              </button>
+            </div>
+          </>
+        ) : (
+          <p style={{ fontSize: 13, color: 'var(--muted)' }}>
+            Family Pack is available in the iOS and Android app.
+          </p>
+        )}
       </section>
 
       <section style={{ borderTop: '1px solid var(--line)', paddingTop: 24, marginBottom: 32 }}>

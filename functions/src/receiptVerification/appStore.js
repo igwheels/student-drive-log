@@ -14,10 +14,14 @@
 // client as functions/unimplemented rather than silently granting
 // entitlement.
 //
-// payload shape expected once implemented: { transactionId, receiptData? }
-// (StoreKit 2 uses signed transactions, not the old base64 receipt blob —
-// confirm which the chosen Capacitor IAP plugin exposes before wiring this
-// up, since it changes what `payload` needs to carry.)
+// payload shape (from src/utils/entitlements.js, via @capgo/native-purchases
+// — chosen 2026-09-30: free, no third-party backend, native StoreKit
+// 2/Play Billing): { receipt, jwsRepresentation }. `receipt` is the legacy
+// base64 receipt blob; `jwsRepresentation` is the StoreKit 2 signed
+// transaction. Prefer verifying `jwsRepresentation` against Apple's App
+// Store Server API — decode+verify the JWS per Apple's docs (root cert
+// chain validation), or use @apple/app-store-server-library, which does
+// this for you.
 export async function verifyAppStoreReceipt(payload) {
   throw new Error('App Store receipt verification is not implemented yet (needs an Apple Developer account).');
 }
