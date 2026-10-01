@@ -82,7 +82,8 @@ const LOCATION_PROBE_INFO = {
 };
 
 export default function Account() {
-  const { user, students, deleteStudent, deleteSessionClaim, logout, hasFamilyPack, restorePurchases } = useApp();
+  const { user, students, deleteStudent, deleteSessionClaim, logout, hasFamilyPack, restorePurchases, isOwner } =
+    useApp();
   const navigate = useNavigate();
 
   const [resetStatus, setResetStatus] = useState('');
@@ -100,6 +101,19 @@ export default function Account() {
   const [restoreStatus, setRestoreStatus] = useState('');
   const [refunding, setRefunding] = useState(false);
   const [refundStatus, setRefundStatus] = useState('');
+  const [confirmingRefund, setConfirmingRefund] = useState(false);
+
+  // Which student stays fully usable if Family Pack is refunded — matches
+  // functions/src/entitlementFanout.js's "oldest by creation time" rule.
+  // Student ids are Date.now().toString(36) + a random suffix (see
+  // AppContext.jsx's addStudent), so ascending string sort already sorts by
+  // creation time for any id created this app has ever existed (holds
+  // until roughly the year 2059, when the base-36 timestamp gains an
+  // extra digit — the server-side version doesn't have this limit, since
+  // it sorts by Firestore's own creation-time metadata instead; this is
+  // only for naming the right student in the warning below).
+  const ownedStudents = students.filter((s) => isOwner(s.id));
+  const oldestOwnedStudent = [...ownedStudents].sort((a, b) => (a.id < b.id ? -1 : 1))[0];
 
   // Fetches the live price to display — required by both stores' review
   // guidelines, see getFamilyPackProduct. Skipped once already entitled,
@@ -143,13 +157,14 @@ export default function Account() {
   };
 
   const handleRequestRefund = async () => {
+    setConfirmingRefund(false);
     setRefundStatus('');
     setRefunding(true);
     try {
       const status = await requestFamilyPackRefund();
       setRefundStatus(
         status === 'success'
-          ? 'Refund requested. Apple will review it — Family Pack stays active until a decision is made.'
+          ? 'Refund requested. Family Pack stays active until Apple approves it — if approved, the limits below take effect then.'
           : status === 'userCancelled'
             ? ''
             : 'Refund request submitted.'
@@ -461,9 +476,41 @@ export default function Account() {
                 {refundStatus && (
                   <p style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 12 }}>{refundStatus}</p>
                 )}
-                <button className="btn btn-outline" onClick={handleRequestRefund} disabled={refunding}>
-                  {refunding ? 'Opening…' : 'Request Refund'}
-                </button>
+                {confirmingRefund ? (
+                  <div
+                    style={{
+                      border: '1px solid var(--line)',
+                      borderRadius: 10,
+                      padding: 14,
+                      marginBottom: 12,
+                      background: 'var(--off-white)',
+                    }}
+                  >
+                    <p style={{ fontSize: 14, fontWeight: 700, marginBottom: 8 }}>
+                      If Apple approves this refund:
+                    </p>
+                    <ul style={{ fontSize: 13, color: 'var(--navy)', margin: '0 0 12px', paddingLeft: 20 }}>
+                      <li style={{ marginBottom: 4 }}>
+                        {ownedStudents.length > 1
+                          ? `You'll only be able to log new drives for ${oldestOwnedStudent?.firstName || 'your first student'} — ${ownedStudents.length - 1} other student${ownedStudents.length > 2 ? 's' : ''} will be locked (existing history stays visible, but you can't add to it).`
+                          : "You'll be limited to one student driver going forward."}
+                      </li>
+                      <li>Any dashboard sharing with another supervisor will be revoked.</li>
+                    </ul>
+                    <div style={{ display: 'flex', gap: 10 }}>
+                      <button className="btn btn-dark" onClick={handleRequestRefund} disabled={refunding}>
+                        {refunding ? 'Opening…' : 'Yes, Request Refund'}
+                      </button>
+                      <button className="btn btn-outline" onClick={() => setConfirmingRefund(false)}>
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <button className="btn btn-outline" onClick={() => setConfirmingRefund(true)}>
+                    Request Refund
+                  </button>
+                )}
               </>
             )}
             {Capacitor.getPlatform() === 'android' && (

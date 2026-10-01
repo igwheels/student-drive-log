@@ -266,9 +266,18 @@ service cloud.firestore {
         request.resource.data.sharedWithUids == resource.data.get('sharedWithUids', []).concat([request.auth.uid]);
       allow delete: if signedIn() && request.auth.uid == ownerId;
 
-      // Owner and shared co-parents get full read/write on drive logs.
+      // Owner and shared co-parents get full read/write on drive logs —
+      // except writes to a locked student (DEV-36, 2026-10-01: a refund
+      // locks every student beyond the owner's one free slot — see
+      // functions/src/entitlementFanout.js). Reads stay open regardless of
+      // locked, so existing history is still visible/exportable; this only
+      // blocks adding to it.
       match /logs/{logId} {
-        allow read, write: if signedIn() &&
+        allow read: if signedIn() &&
+          (request.auth.uid == ownerId ||
+           isSharedWithMe(get(/databases/$(database)/documents/users/$(ownerId)/students/$(studentId)).data));
+        allow write: if signedIn() &&
+          !get(/databases/$(database)/documents/users/$(ownerId)/students/$(studentId)).data.get('locked', false) &&
           (request.auth.uid == ownerId ||
            isSharedWithMe(get(/databases/$(database)/documents/users/$(ownerId)/students/$(studentId)).data));
       }

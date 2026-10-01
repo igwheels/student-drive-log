@@ -27,19 +27,49 @@ import { logger } from 'firebase-functions/v2';
 //  - onStudentCreated: a new student is added after Family Pack was already
 //    purchased -> seed the flag on creation instead of waiting for the
 //    entitlement doc to change again.
-
-async function setFamilyPackActiveForOwner(uid, active) {
+//
+// Losing entitlement (refund approved — functions/src/
+// appStoreServerNotifications.js writes active: false, which lands here the
+// same as any other entitlement change) does more than flip the flag, per
+// the product decision on DEV-36 (2026-10-01): it locks every student
+// beyond the owner's single free one (`locked: true`, enforced in
+// firestore.rules by blocking writes to a locked student's logs — reading
+// existing history is still allowed, nothing is deleted), and revokes
+// sharing on ALL of the owner's students, including the one that stays
+// unlocked (the free tier never allows sharing at all). Regaining
+// entitlement unlocks every student again, but deliberately does NOT
+// restore a share that was revoked — the owner has to re-share explicitly,
+// since the invited email may no longer be who they'd choose.
+//
+// "The owner's single free one" is whichever student has the oldest
+// Firestore creation time — not a stored field (no client ever had reason
+// to write one), but every document carries this as server-trusted
+// metadata regardless of when it was created, so no backfill is needed for
+// students that already existed before this logic did.
+async function syncFamilyPackForOwner(uid, active) {
   const db = getFirestore();
   const studentsSnap = await db.collection('users').doc(uid).collection('students').get();
   if (studentsSnap.empty) return;
 
+  const docs = [...studentsSnap.docs].sort((a, b) => a.createTime.toMillis() - b.createTime.toMillis());
+  const keptStudentId = docs[0]?.id;
+
   // Batched writes cap at 500 mutations; chunk defensively even though no
   // household is remotely close to that today.
-  const docs = studentsSnap.docs;
   for (let i = 0; i < docs.length; i += 400) {
     const batch = db.batch();
     for (const docSnap of docs.slice(i, i + 400)) {
-      batch.update(docSnap.ref, { familyPackActive: active });
+      if (active) {
+        batch.update(docSnap.ref, { familyPackActive: true, locked: false });
+        continue;
+      }
+      batch.update(docSnap.ref, {
+        familyPackActive: false,
+        locked: docSnap.id !== keptStudentId,
+        sharedWith: [],
+        sharedWithEmails: [],
+        sharedWithUids: [],
+      });
     }
     await batch.commit();
   }
@@ -50,7 +80,7 @@ export const onEntitlementWritten = onDocumentWritten(
   async (event) => {
     if (event.params.entitlementId !== FAMILY_PACK_ENTITLEMENT_ID) return;
     const after = event.data?.after?.data();
-    await setFamilyPackActiveForOwner(event.params.uid, Boolean(after?.active));
+    await syncFamilyPackForOwner(event.params.uid, Boolean(after?.active));
   }
 );
 
