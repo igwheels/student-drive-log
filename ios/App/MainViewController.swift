@@ -68,9 +68,27 @@ class MainViewController: CAPBridgeViewController {
         // physical access to the device AND a Mac it's already paired with
         // (Settings → Safari → Advanced → Web Inspector must also be on, on
         // the phone) — the same bar as plugging it in at all, not a remote
-        // attack surface. iOS 16.4+ only; silently does nothing below that.
+        // attack surface, but the owner still wants it off the one build
+        // that's actually submitted for public release, not just every
+        // Release-configuration build (TestFlight and the public release
+        // ARE the same build type to Xcode — Apple gives no "this one's
+        // going public" flag to key off, so that one build has to be the
+        // single manual exception).
+        //
+        // INSPECTABLE_BUILD is a SWIFT_ACTIVE_COMPILATION_CONDITIONS entry
+        // on the App target's Release config (project.pbxproj) — present by
+        // default, so every ordinary TestFlight build stays inspectable.
+        // Before archiving THE build that gets submitted for App Store
+        // review: Xcode → App target → Build Settings → Swift Compiler —
+        // Custom Flags → Active Compilation Conditions (Release) → remove
+        // INSPECTABLE_BUILD, archive, submit, then put it back for the next
+        // round of TestFlight iteration. Easy to forget — ask me to do this
+        // step when that day comes and I'll handle the flag and the
+        // re-archive.
+        #if INSPECTABLE_BUILD
         if #available(iOS 16.4, *) {
             webView?.isInspectable = true
         }
+        #endif
     }
 }
