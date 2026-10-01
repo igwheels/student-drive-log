@@ -24,7 +24,7 @@ import {
   hapticsAvailable,
   pulseSafetyAlert,
 } from '../utils/haptics';
-import { setTelematicsEnabled } from '../utils/telematics';
+import { setTelematicsEnabled, telematicsMode } from '../utils/telematics';
 import {
   checkBiometryAvailability,
   isBiometricEnabledForUser,
@@ -220,7 +220,19 @@ export default function Account() {
   // never once been turned on. Sync it here too, not just on toggle, so
   // reaching this page is enough to fix that without the user having to
   // uncheck and recheck a box that already looks correct.
+  //
+  // Reported 2026-10-02: this ran unconditionally on every mount, so simply
+  // visiting the Account page — e.g. to check this very toggle before a
+  // road test — silently collapsed a manually-set 'capture' or 'debug'
+  // mode (set by hand via the remote console, no UI for either) back down
+  // to plain 'on', discarding the whole point of setting it. Those two
+  // modes are intentional, deliberate states a mount-time sync has no
+  // business overwriting — the guard below leaves them alone; the
+  // migration this effect exists for only ever needs to turn 'on' on, not
+  // flip an already-deliberate 'capture'/'debug' back off it.
   useEffect(() => {
+    const mode = telematicsMode();
+    if (mode === 'capture' || mode === 'debug') return;
     setTelematicsEnabled(safetyHaptics);
   }, [safetyHaptics]);
   const handleSafetyHapticsToggle = (e) => {
