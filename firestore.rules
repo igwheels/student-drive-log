@@ -222,9 +222,27 @@ service cloud.firestore {
         (request.auth.uid == ownerId ||
          isSharedWithMe(resource.data) ||
          myEmail() in resource.data.get('sharedWithEmails', []));
-      allow create, update: if signedIn() &&
+      // Sharing a dashboard (sharedWithEmails) is a Family Pack feature —
+      // see ShareModal.jsx — but until 2026-10-01 that was enforced only in
+      // the client UI. Nothing here stopped a free account from writing
+      // sharedWithEmails directly, and reported the same day: buying
+      // Family Pack, sharing a student, then refunding left that share
+      // fully intact and functional, since the free entitlement check
+      // never ran again after the initial (client-side only) gate. The
+      // `hasAny(['sharedWithEmails'])` check below means this only costs a
+      // get() on writes that actually touch sharing — every other owner
+      // edit (name, email, state, drive-timer settings, ...) is unaffected
+      // and uncharged.
+      allow create: if signedIn() &&
         request.auth.uid == ownerId &&
-        request.resource.data.ownerId == ownerId;
+        request.resource.data.ownerId == ownerId &&
+        (request.resource.data.get('sharedWithEmails', []).size() == 0 ||
+         get(/databases/$(database)/documents/users/$(ownerId)/entitlements/familyPack).data.get('active', false) == true);
+      allow update: if signedIn() &&
+        request.auth.uid == ownerId &&
+        request.resource.data.ownerId == ownerId &&
+        (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['sharedWithEmails']) ||
+         get(/databases/$(database)/documents/users/$(ownerId)/entitlements/familyPack).data.get('active', false) == true);
       // DEV-62: lets a shared recipient pin their own stable uid onto a
       // student they were invited to by email, the first time they sign
       // in with that exact address — see isSharedWithMe() above and the

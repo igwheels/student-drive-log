@@ -4,25 +4,33 @@ import { useApp } from '../context/AppContext';
 import { studentHasFamilyPack } from '../utils/entitlements';
 
 export default function ShareModal({ studentId, student, onClose, onShare }) {
-  const { shareStudent } = useApp();
+  const { shareStudent, isOwner, hasFamilyPack } = useApp();
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
-  // Keys off the STUDENT's (i.e. the owning household's) entitlement, not
-  // the viewer's own — a free co-parent shared onto a Family Pack owner's
-  // student can still add another supervisor to that student; a free
-  // owner's own student can't gain a new share until the owner buys
-  // Family Pack. See DEV-36 for why this split matters.
+  // Keys off the owning household's entitlement, not the acting viewer's
+  // own — a free co-parent shared onto a Family Pack owner's student can
+  // still add another supervisor to that student; a free owner's own
+  // student can't gain a new share until the owner buys Family Pack. See
+  // DEV-36 for why this split matters.
   //
-  // Existing shares are never affected by this — shareStudent() is only
-  // ever called from the form below, which isn't rendered at all when this
-  // is false. Nothing here reads or touches sharedWithEmails/sharedWith on
-  // an existing student, so a share made before this gate existed (or
-  // before Family Pack existed at all) keeps working exactly as before.
-  const canShare = studentHasFamilyPack(student);
+  // ShareModal is only ever opened by the owner today (Dashboard.jsx gates
+  // the Share button on isOwner()), so when that's true the LIVE
+  // hasFamilyPack from AppContext is used in preference to
+  // student.familyPackActive — the denormalized flag on the student doc is
+  // only refreshed by a full student-list reload (AppContext's one-time
+  // getDocs(), not a live subscription), so it can lag the real,
+  // live-subscribed entitlement by as long as the session has been open.
+  // Reported 2026-10-01: that lag let a just-refunded owner still see (and
+  // briefly use) the share form. The firestore.rules write rule is the
+  // actual enforcement regardless of what this shows; this is purely about
+  // not showing a form that the server would then reject. The
+  // studentHasFamilyPack(student) fallback stays for a hypothetical future
+  // where a non-owner co-parent can also share.
+  const canShare = isOwner(studentId) ? hasFamilyPack : studentHasFamilyPack(student);
 
   const handleShare = async (e) => {
     e.preventDefault();

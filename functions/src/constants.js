@@ -17,3 +17,10 @@ export const STORES = Object.freeze({
   APP_STORE: 'app_store',
   PLAY_STORE: 'play_store',
 });
+
+// Also mirrors src/utils/entitlements.js's FREE_STUDENT_LIMIT — see
+// entitlementFanout.js's onStudentCreated, which is the server-side
+// backstop for this limit (the client-side check in AddStudent.jsx is a UX
+// convenience, not the enforcement — see that file's history for why it
+// couldn't be trusted alone).
+export const FREE_STUDENT_LIMIT = 1;

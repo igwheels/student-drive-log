@@ -1,6 +1,7 @@
 import { onDocumentWritten, onDocumentCreated } from 'firebase-functions/v2/firestore';
 import { getFirestore } from 'firebase-admin/firestore';
-import { ENTITLEMENTS_SUBCOLLECTION, FAMILY_PACK_ENTITLEMENT_ID } from './constants.js';
+import { ENTITLEMENTS_SUBCOLLECTION, FAMILY_PACK_ENTITLEMENT_ID, FREE_STUDENT_LIMIT } from './constants.js';
+import { logger } from 'firebase-functions/v2';
 
 // Denormalizes the OWNER's Family Pack status onto every student document
 // they own, as `familyPackActive`. This is what lets DEV-37's gates work
@@ -64,7 +65,30 @@ export const onStudentCreated = onDocumentCreated(
       .doc(FAMILY_PACK_ENTITLEMENT_ID)
       .get();
     const active = Boolean(entitlementSnap.data()?.active);
-    if (!active) return; // absent/false is the default a fresh student doc already has
-    await event.data.ref.update({ familyPackActive: true });
+    if (active) {
+      await event.data.ref.update({ familyPackActive: true });
+      return;
+    }
+
+    // Server-side backstop for the free-tier student limit. AddStudent.jsx
+    // checks this client-side before calling addStudent(), but that's a UX
+    // convenience, not enforcement — firestore.rules' create rule for
+    // students only checks that the caller owns the doc, not how many they
+    // already have (Security Rules can't cheaply count a collection), so
+    // nothing before this point actually stopped someone from creating a
+    // second student without Family Pack. Reported 2026-10-01: buying
+    // Family Pack, adding a second student, then refunding left that
+    // second student fully usable — the purchase bought a one-time bypass
+    // of a limit that was never real. This closes it by deleting a
+    // just-created student over the limit, the moment it's created.
+    const ownedSnap = await db.collection('users').doc(event.params.ownerId).collection('students').get();
+    if (ownedSnap.size > FREE_STUDENT_LIMIT) {
+      logger.warn('Deleting a student created over the free-tier limit without Family Pack', {
+        ownerId: event.params.ownerId,
+        studentId: event.params.studentId,
+        count: ownedSnap.size,
+      });
+      await event.data.ref.delete();
+    }
   }
 );
