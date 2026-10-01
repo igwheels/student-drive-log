@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#0A2A5E" />
+    <link rel="icon" type="image/png" href="/icon.png" />
+    <title>Support — Student Drive Log</title>
+    <!--
+      Standalone static page — same reasoning as marketing/index.html and
+      public/data-deletion.html. Served at https://sdl.devworksllc.com/support
+      (this is marketing/support/index.html so the URL has no .html suffix;
+      GitHub Pages serves a directory's index.html for the bare path).
+
+      This is the App Store Connect / Play Console "Support URL" field.
+    -->
+    <style>
+      :root {
+        --bg: #0A2A5E;
+        --panel: #1c2740;
+        --text: #e7ecf5;
+        --muted: #9fb0cc;
+        --line: #2c3a58;
+        --accent: #7fa8f0;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        line-height: 1.6;
+      }
+      main { max-width: 680px; margin: 0 auto; padding: 48px 22px 72px; }
+      a { color: var(--accent); }
+      h1 { font-size: 1.7rem; margin: 0 0 8px; }
+      .lede { color: var(--muted); margin: 0 0 32px; }
+      h2 { font-size: 1.1rem; margin: 32px 0 10px; }
+      .card {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 18px 20px;
+        margin: 10px 0;
+      }
+      .card p { margin: 0; }
+      .card + .card { margin-top: 10px; }
+      details {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 14px 20px;
+        margin: 10px 0;
+      }
+      summary { cursor: pointer; font-weight: 600; }
+      details p { color: var(--muted); margin: 10px 0 0; }
+      footer { margin-top: 48px; color: var(--muted); font-size: 0.88rem; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Support</h1>
+      <p class="lede">Student Drive Log — help, questions, and how to reach us.</p>
+
+      <div class="card">
+        <p>
+          Email <a href="mailto:ian@devworksllc.com">ian@devworksllc.com</a> for anything —
+          a bug, a question about your account, a state form that needs fixing, or feedback.
+          We read every message and usually reply within a couple of days.
+        </p>
+      </div>
+
+      <h2>Common questions</h2>
+
+      <details>
+        <summary>How do I change how many hours my state requires?</summary>
+        <p>
+          State requirements are built in and update automatically — there's nothing to
+          configure. If a number looks wrong, email us the state and we'll check it against
+          the DMV's current rule.
+        </p>
+      </details>
+
+      <details>
+        <summary>Why isn't my state's official form available to export?</summary>
+        <p>
+          We've added official pre-filled forms for 29 states so far, with more coming. In
+          the meantime, every state can still export a signed affidavit and the full drive
+          log as a PDF, which is accepted by most DMVs.
+        </p>
+      </details>
+
+      <details>
+        <summary>How do I add a second student, or share with my co-parent?</summary>
+        <p>
+          That's part of Family Pack, a one-time $9.99 purchase (not a subscription) in the
+          app's Account screen. It removes the one-student limit and lets you share a
+          dashboard with another parent or supervisor.
+        </p>
+      </details>
+
+      <details>
+        <summary>How do I delete my data?</summary>
+        <p>
+          See <a href="/data-deletion.html">our data deletion page</a> — you can delete a
+          single student or your whole account directly in the app, no email required.
+        </p>
+      </details>
+
+      <details>
+        <summary>Does the app track my location when I'm not driving?</summary>
+        <p>
+          No. Location is only ever recorded while a drive timer is actively running. See
+          our <a href="/app/#/privacy">Privacy Policy</a> for the full details.
+        </p>
+      </details>
+
+      <footer>
+        Student Drive Log is operated by
+        <a href="https://www.devworksllc.com" target="_blank" rel="noopener noreferrer">DevWorks LLC</a>.
+        <br />
+        <a href="/">Home</a> &middot; <a href="/app/#/terms">Terms of Use</a> &middot;
+        <a href="/app/#/privacy">Privacy Policy</a>
+      </footer>
+    </main>
+  </body>
+</html>

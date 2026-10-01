@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#0A2A5E" />
+    <link rel="icon" type="image/png" href="/icon.png" />
+    <title>Student Drive Log</title>
+    <meta
+      name="description"
+      content="Track a teen driver's supervised practice hours toward their state's permit requirement, and generate the DMV paperwork when they're ready."
+    />
+    <!--
+      Standalone static page, intentionally not part of the Vite/React app
+      (same reasoning as data-deletion.html): the domain root used to BE the
+      signed-in app itself until 2026-10-01 (DEV-26), when it moved to
+      /app/ so the root could become this marketing page instead — see
+      .github/workflows/deploy.yml, which assembles the two together at
+      publish time (this folder is copied in as-is; dist/ lands under app/).
+
+      Store badges below are placeholders (plain text in a badge-shaped box)
+      until the iOS and Android apps are actually live — replace the <a>
+      contents with Apple's/Google's real badge images and real store links
+      at that point. Keep the data-section--badges markup/ids intact if you
+      do, since nothing else depends on them.
+    -->
+    <style>
+      :root {
+        --bg: #0A2A5E;
+        --bg-light: #133B7A;
+        --panel: #1c2740;
+        --text: #e7ecf5;
+        --muted: #9fb0cc;
+        --line: #2c3a58;
+        --accent: #7fa8f0;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        line-height: 1.6;
+      }
+      a { color: var(--accent); }
+      .hero {
+        background: linear-gradient(180deg, var(--bg) 0%, var(--bg-light) 100%);
+        text-align: center;
+        padding: 64px 20px 56px;
+      }
+      .hero img { width: 96px; height: 96px; border-radius: 22px; }
+      .hero h1 { font-size: 1.9rem; margin: 20px 0 8px; }
+      .hero p { color: var(--muted); max-width: 440px; margin: 0 auto; font-size: 1.05rem; }
+
+      .badges { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; margin-top: 32px; }
+      .badge {
+        display: inline-flex;
+        flex-direction: column;
+        align-items: flex-start;
+        justify-content: center;
+        gap: 2px;
+        width: 180px;
+        height: 54px;
+        padding: 0 16px;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        background: var(--panel);
+        color: var(--muted);
+        text-decoration: none;
+        font-size: 0.78rem;
+      }
+      .badge strong { color: var(--text); font-size: 1rem; }
+      .badge.disabled { opacity: 0.6; cursor: default; }
+
+      main { max-width: 720px; margin: 0 auto; padding: 48px 22px 20px; }
+      .features {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+        gap: 16px;
+        margin: 0 0 40px;
+      }
+      .feature {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 18px 20px;
+      }
+      .feature h3 { margin: 0 0 6px; font-size: 1rem; }
+      .feature p { margin: 0; color: var(--muted); font-size: 0.92rem; }
+
+      footer {
+        border-top: 1px solid var(--line);
+        margin-top: 24px;
+        padding: 24px 22px 48px;
+        max-width: 720px;
+        margin-left: auto;
+        margin-right: auto;
+        color: var(--muted);
+        font-size: 0.88rem;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px 18px;
+        align-items: center;
+      }
+      footer a { color: var(--muted); }
+      footer a:hover { color: var(--accent); }
+    </style>
+  </head>
+  <body>
+    <div class="hero">
+      <img src="/icon.png" alt="Student Drive Log" />
+      <h1>Student Drive Log</h1>
+      <p>Track a teen driver's supervised practice hours — and turn that tracking into the DMV paperwork when they're ready for the test.</p>
+
+      <div class="badges">
+        <a class="badge disabled" href="#" aria-disabled="true" onclick="return false">
+          Coming soon to the
+          <strong>App Store</strong>
+        </a>
+        <a class="badge disabled" href="#" aria-disabled="true" onclick="return false">
+          Coming soon on
+          <strong>Google Play</strong>
+        </a>
+      </div>
+    </div>
+
+    <main>
+      <div class="features">
+        <div class="feature">
+          <h3>Track every drive</h3>
+          <p>GPS drive timer auto-calculates mileage, or enter it by hand. Day and night hours tracked separately.</p>
+        </div>
+        <div class="feature">
+          <h3>All 50 states + D.C.</h3>
+          <p>Each state's own supervised-hour requirement, with pre-filled official DMV forms for 29 states.</p>
+        </div>
+        <div class="feature">
+          <h3>Privacy first</h3>
+          <p>No ads, no analytics, no tracking. Location is only ever recorded while a drive timer is running.</p>
+        </div>
+        <div class="feature">
+          <h3>Family Pack</h3>
+          <p>Share a dashboard with a co-parent and track more than one student driver.</p>
+        </div>
+      </div>
+    </main>
+
+    <footer>
+      <span>&copy; <span id="year"></span> <a href="https://www.devworksllc.com" target="_blank" rel="noopener noreferrer">DevWorks LLC</a>. All rights reserved.</span>
+      <a href="/app/#/terms">Terms of Use</a>
+      <a href="/app/#/privacy">Privacy Policy</a>
+      <a href="/support">Support</a>
+    </footer>
+
+    <script>
+      document.getElementById('year').textContent = new Date().getFullYear();
+
+      // The app used to live at this domain's root — emails already sent
+      // (weekly progress / invitation links) and anyone with an old
+      // bookmark may still arrive here with a hash like #/unsubscribe or
+      // #/snapshot?... meant for the app, not this page. Forward them into
+      // the app at its new location rather than silently stranding them.
+      if (location.hash && location.hash.startsWith('#/')) {
+        location.replace('/app/' + location.hash);
+      }
+    </script>
+  </body>
+</html>

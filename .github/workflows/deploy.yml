@@ -25,9 +25,30 @@ jobs:
           cache: npm
       - run: npm ci --legacy-peer-deps
       - run: npm run build
+
+      # The domain root (sdl.devworksllc.com) is marketing/, a plain static
+      # site that isn't part of this Vite project at all — the actual app
+      # (dist/, built above with base: '/app/' in vite.config.js) lives
+      # under /app/. See that file's comment for why. Two files have to
+      # come out of dist/ and sit at the TRUE site root instead of under
+      # app/, both for reasons external parties depend on:
+      #   - CNAME: GitHub Pages only reads this from the published site's
+      #     root, never a subfolder.
+      #   - data-deletion.html: registered with Apple/Google at the exact
+      #     URL https://sdl.devworksllc.com/data-deletion.html — moving it
+      #     would silently break that listing's data-deletion link.
+      - name: Assemble the published site (marketing/ root + app/ at /app/)
+        run: |
+          set -euo pipefail
+          mkdir -p site
+          cp -r marketing/. site/
+          mv dist site/app
+          mv site/app/CNAME site/CNAME
+          mv site/app/data-deletion.html site/data-deletion.html
+
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: dist
+          path: site
 
   deploy:
     needs: build

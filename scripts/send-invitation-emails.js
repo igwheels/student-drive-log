@@ -24,7 +24,9 @@ const resend = new Resend(process.env.RESEND_API_KEY);
 // Resend dashboard's Domains section for devworksllc.com's setup.
 const FROM_EMAIL = 'ian@devworksllc.com';
 
-const APP_URL = process.env.APP_URL || 'https://sdl.devworksllc.com/';
+// Domain root is now a marketing page (DEV-26, 2026-10-01) — the app
+// itself lives under /app/.
+const APP_URL = process.env.APP_URL || 'https://sdl.devworksllc.com/app/';
 
 async function main() {
   const db = getFirestore();
