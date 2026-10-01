@@ -112,7 +112,7 @@ export function startDriveTelematics({ getSpeedMph, onEvent } = {}) {
           `spd=${debug.speedMph ?? '–'} ` +
           `brake=${debug.smBrake.toFixed(2)} (${bPct}%${debug.holdBrakeMs ? ` hold ${debug.holdBrakeMs | 0}ms` : ''}) ` +
           `yaw=${debug.smYaw.toFixed(0)} (${yPct}%${debug.holdYawMs ? ` hold ${debug.holdYawMs | 0}ms` : ''})` +
-          `${debug.warm ? '' : ' [warmup]'}`
+          `${debug.warm ? '' : ' [warmup]'}${debug.disturbed ? ' [DISTURBED]' : ''}`
       );
     }
 

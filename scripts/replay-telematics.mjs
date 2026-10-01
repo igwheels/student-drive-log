@@ -72,6 +72,7 @@ function run(samples, thresholds) {
           `spd=${String(debug.speedMph ?? '–').padStart(4)} ` +
           `brake=${debug.smBrake.toFixed(2).padStart(6)} ` +
           `yaw=${debug.smYaw.toFixed(0).padStart(4)}` +
+          (debug.disturbed ? '  [DISTURBED]' : '') +
           (evs.length ? `   <<< ${evs.map((e) => e.type).join(', ')}` : '')
       );
     }

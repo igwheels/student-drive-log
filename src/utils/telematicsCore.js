@@ -43,6 +43,23 @@ export const THRESHOLDS = {
   gravityWarmupSmoothing: 0.1,
   // Ignore this first stretch while the gravity estimate converges.
   warmupMs: 1000,
+  // Reported 2026-10-02 from real test drives: a phone that isn't mounted or
+  // sitting flat and still throws false hard-brake/harsh-turn events. Root
+  // cause isn't fixable by threshold tuning alone — detection reads the
+  // phone's OWN accelerometer/gyro frame, which only maps cleanly onto the
+  // car's motion when the phone's orientation relative to the car is fixed.
+  // A loose phone sliding, tipping, or being picked up moves independently
+  // of the car, and that motion reads as car motion.
+  //
+  // This catches one slice of that: a raw accelerometer magnitude far from
+  // 1 g means something is physically disturbing the phone (a slide, a
+  // small impact) beyond what smooth gravity + vehicle acceleration
+  // produces — even a hard 0.7 g stop only pushes magnitude to ~1.2 g. Does
+  // NOT fix a phone that tips to a new resting angle and stays there (no
+  // magnitude anomaly, just a changed axis mapping) — that needs real
+  // orientation tracking, not a threshold. Still unverified like the rest of
+  // THRESHOLDS — tune with sdl_telematics='capture' + replay-telematics.mjs.
+  disturbanceMagnitudeMs2: 3.5,
 };
 
 export function createTelematicsState() {
@@ -116,12 +133,20 @@ export function processSample(state, sample, opts = {}) {
   state.smBrake += th.signalSmoothing * (linMag - state.smBrake);
   state.smYaw += th.signalSmoothing * (yawRate - state.smYaw);
 
+  // See disturbanceMagnitudeMs2's comment: the RAW (pre-gravity-subtraction)
+  // vector magnitude straying far from 1 g means something is physically
+  // disturbing the phone itself, not just the car — a mounted/flat phone's
+  // raw magnitude stays near G plus whatever the car is doing, but a phone
+  // that's sliding or getting jostled adds real force beyond that.
+  const rawMag = Math.hypot(sample.x, sample.y, sample.z);
+  const disturbed = Math.abs(rawMag - G) > th.disturbanceMagnitudeMs2;
+
   const speed = sample.speedMph;
   const movingFastEnough = speed == null || speed >= th.minSpeedMph;
 
   const events = [];
   const consider = (type, over) => {
-    if (!warm || !over || !movingFastEnough) {
+    if (!warm || !over || !movingFastEnough || disturbed) {
       state.overSince[type] = null;
       return;
     }
@@ -153,6 +178,8 @@ export function processSample(state, sample, opts = {}) {
       speedMph: speed ?? null,
       warm,
       movingFastEnough,
+      rawMag,
+      disturbed,
       holdBrakeMs: state.overSince['hard-brake'] == null ? 0 : now - state.overSince['hard-brake'],
       holdYawMs: state.overSince['harsh-turn'] == null ? 0 : now - state.overSince['harsh-turn'],
     },
