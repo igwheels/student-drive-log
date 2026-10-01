@@ -110,6 +110,14 @@
 html, body, #root {
   height: 100%;
   margin: 0;
+  /* Nothing in this app scrolls sideways. Without this, WKWebView's
+     default rubber-band bounce can still trigger a brief horizontal
+     snap-back from an imprecise swipe or a sub-pixel layout rounding —
+     reported 2026-10-01 as "the screen moves around from side to side
+     slightly". overscroll-behavior-x is a second line of defense; the
+     primary fix is disabling horizontal bounce in the native WKScrollView
+     itself — see ios/App/MainViewController.swift. */
+  overflow-x: hidden;
 }
 
 body {
@@ -117,6 +125,7 @@ body {
   background: var(--off-white);
   color: var(--navy);
   -webkit-font-smoothing: antialiased;
+  overscroll-behavior-x: none;
 }
 
 h1, h2, h3 {
@@ -304,7 +313,12 @@ a { color: inherit; }
   width: 100%;
   max-width: 640px;
   margin: 0 auto;
-  padding: 28px 20px 64px;
+  /* calc(...) bottom, not a flat 64px: without env(safe-area-inset-bottom)
+     the last ~34pt of content on a home-indicator iPhone sits behind the
+     gesture bar — reported 2026-10-01 as part of a page being "cut off".
+     Matches the same pattern .topbar and .legal-page already use for the
+     top inset. */
+  padding: 28px 20px calc(64px + env(safe-area-inset-bottom));
 }
 
 /* ---------- Buttons ---------- */

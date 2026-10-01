@@ -25,5 +25,19 @@ class MainViewController: CAPBridgeViewController {
     override open func capacitorDidLoad() {
         bridge?.registerPluginInstance(RebootCheckPlugin())
         bridge?.registerPluginInstance(RefundPlugin())
+
+        // Nothing in this app scrolls or lays out sideways, but
+        // WKWebView's WKScrollView defaults can still permit a horizontal
+        // rubber-band snap-back from an imprecise diagonal swipe, or from
+        // a sub-pixel layout/safe-area rounding difference between
+        // contentSize.width and the view's own width — reported
+        // 2026-10-01 as "the screen moves around from side to side
+        // slightly". alwaysBounceHorizontal should already default to
+        // false when content doesn't overflow, but setting it explicitly
+        // removes the one native-side source of this regardless of why it
+        // was happening. (src/styles/theme.css's overflow-x: hidden is the
+        // CSS-side second line of defense.) Vertical bounce is untouched —
+        // that's the normal, expected scroll feel.
+        webView?.scrollView.alwaysBounceHorizontal = false
     }
 }
