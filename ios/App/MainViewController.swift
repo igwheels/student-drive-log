@@ -22,22 +22,42 @@ import Capacitor
  * any app JS runs.
  */
 class MainViewController: CAPBridgeViewController {
+    private var contentOffsetObservation: NSKeyValueObservation?
+
     override open func capacitorDidLoad() {
         bridge?.registerPluginInstance(RebootCheckPlugin())
         bridge?.registerPluginInstance(RefundPlugin())
 
-        // Nothing in this app scrolls or lays out sideways, but
-        // WKWebView's WKScrollView defaults can still permit a horizontal
-        // rubber-band snap-back from an imprecise diagonal swipe, or from
-        // a sub-pixel layout/safe-area rounding difference between
-        // contentSize.width and the view's own width — reported
-        // 2026-10-01 as "the screen moves around from side to side
-        // slightly". alwaysBounceHorizontal should already default to
-        // false when content doesn't overflow, but setting it explicitly
-        // removes the one native-side source of this regardless of why it
-        // was happening. (src/styles/theme.css's overflow-x: hidden is the
-        // CSS-side second line of defense.) Vertical bounce is untouched —
-        // that's the normal, expected scroll feel.
+        // Nothing in this app scrolls or lays out sideways. alwaysBounceHorizontal
+        // = false (below) rules out elastic rubber-banding, and src/styles/
+        // theme.css's overflow-x: hidden rules out DOM-level horizontal
+        // overflow — neither stopped a reported, persistent (non-bouncing)
+        // horizontal content shift of up to ~165px on the Dashboard page in
+        // build 10, confirmed from a screen recording via frame-by-frame
+        // analysis: the shift held steady rather than springing back, and
+        // on-screen elements stayed the same size (ruling out pinch-zoom,
+        // which Capacitor's own WebViewDelegationHandler disables anyway —
+        // see scrollViewWillBeginZooming there). Exact trigger unconfirmed
+        // (candidates: WKWebView's own edge-swipe-to-go-back gesture
+        // recognizer misfiring against a single-page app with no real
+        // in-WebView navigation history to reveal; or a transient
+        // scrollView.contentSize miscalculation). Rather than keep chasing
+        // which one it is, this enforces the actual invariant directly:
+        // nothing in this app is ever supposed to be horizontally
+        // scrolled, at all, so pin contentOffset.x to 0 unconditionally,
+        // for any reason, the instant it changes. KVO rather than
+        // becoming the scrollView's delegate — Capacitor's own bridge sets
+        // that to its internal WebViewDelegationHandler (see
+        // CAPBridgeViewController.swift), and overwriting it would silently
+        // break whatever Capacitor relies on that for (it doesn't implement
+        // scrollViewDidScroll itself, but observing is still the
+        // non-destructive way to add behavior here).
+        if let scrollView = webView?.scrollView {
+            contentOffsetObservation = scrollView.observe(\.contentOffset, options: [.new]) { scrollView, change in
+                guard let offset = change.newValue, offset.x != 0 else { return }
+                scrollView.contentOffset = CGPoint(x: 0, y: offset.y)
+            }
+        }
         webView?.scrollView.alwaysBounceHorizontal = false
     }
 }

@@ -8,8 +8,17 @@
       area unaccounted for — without it, env(safe-area-inset-*) below has
       nothing to measure and fixed chrome like .topbar renders flush against
       the very edge, colliding with the status bar.
+
+      maximum-scale=1, user-scalable=no: nothing in this app is designed to
+      be pinch-zoomed, and a stray zoom gesture mid-scroll is one of the
+      candidate causes investigated for the horizontal screen-shift
+      reported 2026-10-01 (see ios/App/MainViewController.swift's
+      contentOffset KVO for the actual fix). Redundant on iOS — Capacitor's
+      WebViewDelegationHandler already disables the pinch gesture recognizer
+      — but Android's WebView has no equivalent, so this is the only
+      protection there.
     -->
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
     <meta name="theme-color" content="#0A2A5E" />
     <!--
       Vite fingerprints the JS and CSS filenames, so those cache forever
