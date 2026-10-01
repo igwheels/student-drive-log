@@ -59,5 +59,18 @@ class MainViewController: CAPBridgeViewController {
             }
         }
         webView?.scrollView.alwaysBounceHorizontal = false
+
+        // Without this, only a Debug build run from Xcode over a cable is
+        // visible in Safari → Develop — a real TestFlight/Release build's
+        // WKWebView is invisible to the remote inspector by default, which
+        // is what made it impossible to pull a telematics capture CSV off a
+        // real device during real-world road testing (2026-10-02). Requires
+        // physical access to the device AND a Mac it's already paired with
+        // (Settings → Safari → Advanced → Web Inspector must also be on, on
+        // the phone) — the same bar as plugging it in at all, not a remote
+        // attack surface. iOS 16.4+ only; silently does nothing below that.
+        if #available(iOS 16.4, *) {
+            webView?.isInspectable = true
+        }
     }
 }
