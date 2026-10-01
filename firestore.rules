@@ -228,11 +228,17 @@ service cloud.firestore {
       // sharedWithEmails directly, and reported the same day: buying
       // Family Pack, sharing a student, then refunding left that share
       // fully intact and functional, since the free entitlement check
-      // never ran again after the initial (client-side only) gate. The
-      // `hasAny(['sharedWithEmails'])` check below means this only costs a
-      // get() on writes that actually touch sharing — every other owner
-      // edit (name, email, state, drive-timer settings, ...) is unaffected
-      // and uncharged.
+      // never ran again after the initial (client-side only) gate.
+      //
+      // Gates GROWING the list, not touching it: comparing sizes, not
+      // hasAny(['sharedWithEmails']), is deliberate — unshareStudent()
+      // writes this same field to REMOVE an entry (see AppContext.jsx),
+      // and that must always be allowed regardless of entitlement, or a
+      // refunded owner could never revoke a share they made while they
+      // still had Family Pack. Also means an existing share from before
+      // this entitlement model existed, or from while Family Pack was
+      // active, keeps working untouched — this only blocks adding a NEW
+      // email to the list without an active entitlement.
       allow create: if signedIn() &&
         request.auth.uid == ownerId &&
         request.resource.data.ownerId == ownerId &&
@@ -241,7 +247,7 @@ service cloud.firestore {
       allow update: if signedIn() &&
         request.auth.uid == ownerId &&
         request.resource.data.ownerId == ownerId &&
-        (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['sharedWithEmails']) ||
+        (request.resource.data.get('sharedWithEmails', []).size() <= resource.data.get('sharedWithEmails', []).size() ||
          get(/databases/$(database)/documents/users/$(ownerId)/entitlements/familyPack).data.get('active', false) == true);
       // DEV-62: lets a shared recipient pin their own stable uid onto a
       // student they were invited to by email, the first time they sign
