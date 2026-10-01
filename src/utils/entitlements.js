@@ -5,7 +5,7 @@
 // actually happens.
 import { httpsCallable } from 'firebase/functions';
 import { doc, onSnapshot } from 'firebase/firestore';
-import { Capacitor } from '@capacitor/core';
+import { Capacitor, registerPlugin } from '@capacitor/core';
 import { NativePurchases, PURCHASE_TYPE } from '@capgo/native-purchases';
 import { db, functions } from '../firebase';
 
@@ -31,6 +31,17 @@ function currentStore() {
 // verifying against the Play Developer API — see
 // functions/src/receiptVerification/playStore.js.
 const ANDROID_PACKAGE_NAME = 'com.devworksllc.sdl';
+
+// App-local Capacitor plugin — ios/App/RefundPlugin.swift, wrapping
+// StoreKit 2's Transaction.beginRefundRequest(for:in:). No Capacitor IAP
+// plugin exposes this (it's StoreKit-only — Android has no in-app refund
+// flow at all; registerPlugin()'s proxy for a platform that never
+// registers it just rejects every call, which requestFamilyPackRefund
+// below avoids by checking the platform first). See
+// functions/src/appStoreServerNotifications.js for what actually revokes
+// the entitlement once Apple approves the refund — this plugin only
+// presents Apple's sheet.
+const Refund = registerPlugin('Refund');
 
 // Free-tier limits (product decision, 2026-09-07): a free account owns at
 // most one student and can't share a dashboard with another supervisor —
@@ -178,4 +189,32 @@ export async function restorePurchases() {
     transactionId: purchase.transactionId,
     receiptPayload: receiptPayloadFrom(store, purchase),
   });
+}
+
+// Presents Apple's native refund-request sheet (ios/App/RefundPlugin.swift)
+// for the signed-in account's Family Pack purchase. iOS-only: Android has
+// no in-app refund API, so Play purchases are refunded through the Play
+// Store app itself (Order history → Request a refund) — Account.jsx hides
+// this button on Android rather than it rejecting on tap.
+//
+// This only presents the sheet; it does NOT revoke the entitlement itself,
+// even on success — "success" here means the user completed the refund
+// *request* and Apple accepted it for review, not that the refund was
+// granted. The actual revocation happens asynchronously once Apple
+// approves it, delivered as a REFUND notification to
+// functions/src/appStoreServerNotifications.js. In Sandbox/TestFlight that
+// approval is immediate; in production it can take longer, so a user who
+// just tapped through this may still see Family Pack as active for a
+// while afterwards — that's correct, not a bug.
+export async function requestFamilyPackRefund() {
+  if (Capacitor.getPlatform() !== 'ios') {
+    throw new Error('Refunds for the Android app are requested from the Play Store app, not here.');
+  }
+
+  const { purchases } = await NativePurchases.getPurchases({ productType: PURCHASE_TYPE.INAPP });
+  const purchase = purchases.find((p) => p.productIdentifier === FAMILY_PACK_PRODUCT_ID);
+  if (!purchase) throw new Error('No Family Pack purchase found on this account to refund.');
+
+  const { status } = await Refund.requestRefund({ transactionId: purchase.transactionId });
+  return status; // 'success' | 'userCancelled' | 'unknown'
 }

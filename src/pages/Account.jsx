@@ -12,7 +12,7 @@ import {
 } from 'firebase/auth';
 import { Capacitor } from '@capacitor/core';
 import { watchLocationPermissionStatus, probeLocationAccess } from '../utils/geo';
-import { getFamilyPackProduct, purchaseFamilyPack } from '../utils/entitlements';
+import { getFamilyPackProduct, purchaseFamilyPack, requestFamilyPackRefund } from '../utils/entitlements';
 import {
   getWeeklyEmailOptOut,
   setWeeklyEmailOptOut,
@@ -98,6 +98,8 @@ export default function Account() {
   const [purchaseError, setPurchaseError] = useState('');
   const [restoring, setRestoring] = useState(false);
   const [restoreStatus, setRestoreStatus] = useState('');
+  const [refunding, setRefunding] = useState(false);
+  const [refundStatus, setRefundStatus] = useState('');
 
   // Fetches the live price to display — required by both stores' review
   // guidelines, see getFamilyPackProduct. Skipped once already entitled,
@@ -137,6 +139,25 @@ export default function Account() {
       setRestoreStatus(e.message || 'Nothing to restore.');
     } finally {
       setRestoring(false);
+    }
+  };
+
+  const handleRequestRefund = async () => {
+    setRefundStatus('');
+    setRefunding(true);
+    try {
+      const status = await requestFamilyPackRefund();
+      setRefundStatus(
+        status === 'success'
+          ? 'Refund requested. Apple will review it — Family Pack stays active until a decision is made.'
+          : status === 'userCancelled'
+            ? ''
+            : 'Refund request submitted.'
+      );
+    } catch (e) {
+      setRefundStatus(e.message || 'Could not start the refund request.');
+    } finally {
+      setRefunding(false);
     }
   };
 
@@ -431,9 +452,26 @@ export default function Account() {
       <section style={{ borderTop: '1px solid var(--line)', paddingTop: 24, marginBottom: 32 }}>
         <h3 style={{ fontSize: 16, marginBottom: 10 }}>Family Pack</h3>
         {hasFamilyPack ? (
-          <p style={{ fontSize: 14, color: 'var(--success)', fontWeight: 700 }}>
-            Active — unlimited students, and you can share a dashboard with another supervisor.
-          </p>
+          <>
+            <p style={{ fontSize: 14, color: 'var(--success)', fontWeight: 700, marginBottom: 12 }}>
+              Active — unlimited students, and you can share a dashboard with another supervisor.
+            </p>
+            {Capacitor.getPlatform() === 'ios' && (
+              <>
+                {refundStatus && (
+                  <p style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 12 }}>{refundStatus}</p>
+                )}
+                <button className="btn btn-outline" onClick={handleRequestRefund} disabled={refunding}>
+                  {refunding ? 'Opening…' : 'Request Refund'}
+                </button>
+              </>
+            )}
+            {Capacitor.getPlatform() === 'android' && (
+              <p style={{ fontSize: 12, color: 'var(--muted)' }}>
+                To request a refund, use the Play Store app → Account → Order history.
+              </p>
+            )}
+          </>
         ) : Capacitor.isNativePlatform() ? (
           <>
             <p style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 12 }}>

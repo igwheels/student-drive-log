@@ -5,13 +5,13 @@ import Capacitor
  * Base.lproj/Main.storyboard in place of Capacitor's own
  * CAPBridgeViewController.
  *
- * It exists for exactly one reason: to register RebootCheckPlugin.
- * Capacitor 8 auto-registers only the classes named in the generated
- * App/capacitor.config.json `packageClassList`, and `cap sync` rebuilds
- * that list purely from the Capacitor plugins installed under
- * node_modules — an app-local plugin can never appear in it, no matter
- * that its source file is in the App target. With no registration the
- * bridge never injects a PluginHeader for "RebootCheck", and
+ * It exists for exactly one reason: to register app-local plugins
+ * (RebootCheckPlugin, RefundPlugin). Capacitor 8 auto-registers only the
+ * classes named in the generated App/capacitor.config.json
+ * `packageClassList`, and `cap sync` rebuilds that list purely from the
+ * Capacitor plugins installed under node_modules — an app-local plugin can
+ * never appear in it, no matter that its source file is in the App target.
+ * With no registration the bridge never injects a PluginHeader for it, and
  * @capacitor/core's registerPlugin() proxy rejects every call with "not
  * implemented" without ever reaching native. That is what made
  * getDeviceBootTime() return null on device and left the reboot half of
@@ -24,5 +24,6 @@ import Capacitor
 class MainViewController: CAPBridgeViewController {
     override open func capacitorDidLoad() {
         bridge?.registerPluginInstance(RebootCheckPlugin())
+        bridge?.registerPluginInstance(RefundPlugin())
     }
 }
