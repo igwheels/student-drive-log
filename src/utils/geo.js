@@ -44,6 +44,22 @@ const MIN_PLAUSIBLE_SPEED_MPH = 3;
 // jump *up* between consecutive fixes is treated as noise.
 const MAX_ACCEL_MPH_PER_S = 12;
 
+// Reported 2026-10-02 from real test drives: speed didn't reliably reach 0
+// at a stop. MIN_PLAUSIBLE_SPEED_MPH alone can't fully fix this — the
+// comment on it already admits Doppler jitter is "a few mph", which isn't
+// bounded at 3, and raising that floor further would start hiding genuine
+// slow driving (a parking lot, stop-and-go traffic). Position is the more
+// reliable signal at a stop: consecutive fixes from a genuinely stationary
+// car cluster within normal GPS wander, while coords.speed keeps deriving
+// from the noisier Doppler estimate regardless. If fixes haven't shown real
+// movement for STOPPED_LATCH_MS, the displayed speed is forced to 0 no
+// matter what coords.speed still reports.
+const STOPPED_LATCH_MS = 2000;
+// A fix-to-fix jump below this is normal GPS wander while parked, not
+// movement — roughly a car length, well under what even a slow walk covers
+// between the ~1s fixes watchPosition typically delivers.
+const STOPPED_LATCH_DISTANCE_MILES = 0.003;
+
 // GeolocationPositionError codes, per spec.
 const GEO_PERMISSION_DENIED = 1;
 const GEO_POSITION_UNAVAILABLE = 2;
@@ -218,6 +234,10 @@ export function startMileageTracking(onUpdate, options = {}) {
   // against it.
   let lastAcceptedSpeed = null;
   let lastAcceptedSpeedAt = null;
+  // When a fix last showed real movement (see STOPPED_LATCH_DISTANCE_MILES) —
+  // null until the first fix, then updated on every fix that clears it, never
+  // on one that doesn't. Drives the STOPPED_LATCH_MS force-to-0 above.
+  let lastMovedAt = null;
   // The browser's own account of the last failure, passed through so the UI
   // can show it. Geolocation failures are otherwise indistinguishable from
   // the outside, and guessing at them from behaviour alone has cost time.
@@ -281,8 +301,9 @@ export function startMileageTracking(onUpdate, options = {}) {
       if (maxSpeedMph == null || speedMph > maxSpeedMph) maxSpeedMph = speedMph;
     }
 
+    let delta = null;
     if (lastFix) {
-      const delta = haversineMiles(lastFix.latitude, lastFix.longitude, latitude, longitude);
+      delta = haversineMiles(lastFix.latitude, lastFix.longitude, latitude, longitude);
       // An implausible jump between fixes doesn't count toward mileage — it is
       // a gap in tracking (backgrounded app, tunnel), not distance we can
       // vouch for. lastFix still advances: leaving it behind would measure
@@ -290,6 +311,19 @@ export function startMileageTracking(onUpdate, options = {}) {
       // than MAX_JUMP_MILES away, every one of them would be rejected too and
       // tracking would never recover for the rest of the drive.
       if (delta <= MAX_JUMP_MILES) totalMiles += delta;
+    }
+
+    // Stop latch (see STOPPED_LATCH_MS above) — overrides whatever the
+    // plausibility gate above produced. No baseline yet (delta == null, the
+    // very first fix of the drive) counts as "just moved": there's nothing to
+    // measure a stop against, and assuming stationary before the drive has
+    // even started isn't the honest default.
+    if (delta == null || delta > STOPPED_LATCH_DISTANCE_MILES) {
+      lastMovedAt = timeMs;
+    } else if (lastMovedAt != null && timeMs - lastMovedAt >= STOPPED_LATCH_MS) {
+      lastSpeedMph = 0;
+      lastAcceptedSpeed = 0;
+      lastAcceptedSpeedAt = timeMs;
     }
 
     lastFix = { latitude, longitude };

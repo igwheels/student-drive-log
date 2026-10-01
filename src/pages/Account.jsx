@@ -566,6 +566,10 @@ export default function Account() {
             A short double buzz, so the supervising adult notices without looking at the screen.
             Saved on this device only.
           </p>
+          <p style={{ fontSize: 13, color: 'var(--muted)', margin: '8px 0 0' }}>
+            For accurate alerts, mount the phone or set it flat and still during the drive — a
+            phone held loosely or sliding around can trigger false alerts.
+          </p>
           <button
             type="button"
             className="btn btn-outline"
