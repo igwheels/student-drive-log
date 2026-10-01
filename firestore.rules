@@ -267,16 +267,17 @@ service cloud.firestore {
       allow delete: if signedIn() && request.auth.uid == ownerId;
 
       // Owner and shared co-parents get full read/write on drive logs —
-      // except writes to a locked student (DEV-36, 2026-10-01: a refund
+      // except NEW logs on a locked student (DEV-36, 2026-10-01: a refund
       // locks every student beyond the owner's one free slot — see
-      // functions/src/entitlementFanout.js). Reads stay open regardless of
-      // locked, so existing history is still visible/exportable; this only
-      // blocks adding to it.
+      // functions/src/entitlementFanout.js). Reads, and editing/deleting an
+      // EXISTING log, stay open regardless of locked — "can't log new
+      // drives" shouldn't also mean "can't fix a typo in an old one or
+      // delete a mis-entered log"; only create is gated.
       match /logs/{logId} {
-        allow read: if signedIn() &&
+        allow read, update, delete: if signedIn() &&
           (request.auth.uid == ownerId ||
            isSharedWithMe(get(/databases/$(database)/documents/users/$(ownerId)/students/$(studentId)).data));
-        allow write: if signedIn() &&
+        allow create: if signedIn() &&
           !get(/databases/$(database)/documents/users/$(ownerId)/students/$(studentId)).data.get('locked', false) &&
           (request.auth.uid == ownerId ||
            isSharedWithMe(get(/databases/$(database)/documents/users/$(ownerId)/students/$(studentId)).data));

@@ -246,12 +246,29 @@ export default function Dashboard() {
       )}
 
       <div style={{ marginTop: 24, display: 'flex', flexDirection: 'column', gap: 12 }}>
-        <button className="btn btn-primary" onClick={() => navigate(`/drive-timer/${studentId}`)}>
+        <button
+          className="btn btn-primary"
+          disabled={student.locked}
+          onClick={() => navigate(`/drive-timer/${studentId}`)}
+        >
           Start a Drive
         </button>
-        <button className="btn btn-dark" onClick={() => navigate(`/log-drive/${studentId}`)}>
+        <button
+          className="btn btn-dark"
+          disabled={student.locked}
+          onClick={() => navigate(`/log-drive/${studentId}`)}
+        >
           Log a Drive
         </button>
+        {student.locked && (
+          <p style={{ color: 'var(--muted)', fontSize: 12, margin: '-4px 0 0' }}>
+            This student is locked — buy Family Pack on your{' '}
+            <a href="#" onClick={(e) => { e.preventDefault(); navigate('/account'); }}>
+              Account page
+            </a>{' '}
+            to log new drives. Existing history below is still visible.
+          </p>
+        )}
         <button
           className="btn btn-outline"
           disabled={logs.length === 0}
