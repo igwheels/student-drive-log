@@ -15,6 +15,14 @@ function StudentCard({ student, totals, shared }) {
   const doneHours = fmtHours(totals.totalMinutes);
   const open = () => navigate(`/dashboard/${student.id}`);
 
+  // Locked students (set by functions/src/entitlementFanout.js when an
+  // over-the-free-limit account's Family Pack refund is approved) still
+  // navigate to their dashboard — existing history is still readable, only
+  // new logs are blocked (firestore.rules) — so this is purely the same
+  // "can't act on this without Family Pack" visual the + Add button below
+  // already uses, not a disabled card.
+  const grayedOut = shared ? { opacity: 0.8 } : student.locked ? { opacity: 0.5 } : null;
+
   return (
     <div
       className="plate-card"
@@ -22,7 +30,7 @@ function StudentCard({ student, totals, shared }) {
       role="button"
       tabIndex={0}
       onKeyDown={(e) => e.key === 'Enter' && open()}
-      style={{ cursor: 'pointer', ...(shared ? { opacity: 0.8 } : null) }}
+      style={{ cursor: 'pointer', ...grayedOut }}
     >
       <div>
         <div className="name">{student.firstName} {student.lastName}</div>
@@ -31,6 +39,11 @@ function StudentCard({ student, totals, shared }) {
           {shared && (
             <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--muted)' }}>
               • Shared{student.ownerName ? ` by ${student.ownerName}` : ''}
+            </span>
+          )}
+          {student.locked && (
+            <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--muted)' }}>
+              • Locked — buy Family Pack to log new drives
             </span>
           )}
         </div>
