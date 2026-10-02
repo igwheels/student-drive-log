@@ -482,7 +482,11 @@ a { color: inherit; }
 
 /* ---------- Timer (trip computer) ---------- */
 .timer-screen {
-  min-height: 100%;
+  /* flex: 1, not min-height: 100% — see .login-screen above, same bug: as a
+     non-growing flex item inside .app-shell it stopped at its natural
+     height, and the gap above the footer fell through to the body's
+     off-white background instead of staying navy. */
+  flex: 1;
   background: radial-gradient(circle at 50% 20%, var(--navy-lighter), var(--navy) 70%);
   color: var(--white);
   display: flex;

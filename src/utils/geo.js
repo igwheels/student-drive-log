@@ -54,11 +54,18 @@ const MAX_ACCEL_MPH_PER_S = 12;
 // from the noisier Doppler estimate regardless. If fixes haven't shown real
 // movement for STOPPED_LATCH_MS, the displayed speed is forced to 0 no
 // matter what coords.speed still reports.
-const STOPPED_LATCH_MS = 2000;
+//
+// Widened again the same day — still wasn't consistently reaching 0. The
+// original 0.003mi (~4.8m) was tighter than the accuracy radius a lot of
+// real fixes carry (MAX_ACCURACY_METERS admits up to 100m): in anything but
+// a clean-sky fix, ordinary jitter was itself enough to clear that
+// threshold and keep refreshing lastMovedAt, so the latch rarely got the
+// unbroken window below it needed to ever fire.
+const STOPPED_LATCH_MS = 3000;
 // A fix-to-fix jump below this is normal GPS wander while parked, not
-// movement — roughly a car length, well under what even a slow walk covers
+// movement — about two car lengths, well under what even a slow walk covers
 // between the ~1s fixes watchPosition typically delivers.
-const STOPPED_LATCH_DISTANCE_MILES = 0.003;
+const STOPPED_LATCH_DISTANCE_MILES = 0.006;
 
 // GeolocationPositionError codes, per spec.
 const GEO_PERMISSION_DENIED = 1;
