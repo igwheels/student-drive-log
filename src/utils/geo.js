@@ -8,6 +8,10 @@ const BackgroundGeolocation = registerPlugin('BackgroundGeolocation');
 
 const EARTH_RADIUS_MILES = 3958.8;
 
+// Exact by definition — used to convert a fix's reported accuracy (metres)
+// into the same miles unit as STOPPED_LATCH_DISTANCE_MILES.
+const METERS_PER_MILE = 1609.344;
+
 // Ignore GPS points that jump further than this in one reading — almost
 // always a bad fix rather than the car actually teleporting.
 const MAX_JUMP_MILES = 1;
@@ -62,10 +66,35 @@ const MAX_ACCEL_MPH_PER_S = 12;
 // threshold and keep refreshing lastMovedAt, so the latch rarely got the
 // unbroken window below it needed to ever fire.
 const STOPPED_LATCH_MS = 3000;
-// A fix-to-fix jump below this is normal GPS wander while parked, not
-// movement — about two car lengths, well under what even a slow walk covers
-// between the ~1s fixes watchPosition typically delivers.
+// Confirmed 2026-10-03: still inconsistent even after the widening above.
+// Two flat-number guesses in a row weren't the right lever — a single fixed
+// distance can't be right for both a clean-sky fix (accuracy ~5m) and a
+// degraded one (accuracy ~80m, still under MAX_ACCURACY_METERS) at the same
+// time. This is now a FLOOR, not the only tolerance: see
+// stopLatchToleranceMiles below, which scales with what each fix actually
+// reports instead of guessing a bigger constant a third time. Kept as the
+// minimum for the rare case of a suspiciously tiny reported accuracy.
 const STOPPED_LATCH_DISTANCE_MILES = 0.006;
+// A GPS fix's own `accuracy` is its reported 1-sigma/CEP radius — the
+// expected noise, not a guess. Two independent fixes of the same true,
+// stationary point can differ by up to roughly the sum of their two radii in
+// the worst case (each could be offset in opposite directions from the true
+// point). Summing both fixes' accuracy, rather than using just one, accounts
+// for either endpoint being the noisier one. Provisional like the telematics
+// thresholds — tune against real captures if it's still not enough.
+function stopLatchToleranceMiles(accuracyMetersA, accuracyMetersB) {
+  const a = accuracyMetersA ?? 0;
+  const b = accuracyMetersB ?? 0;
+  return Math.max(STOPPED_LATCH_DISTANCE_MILES, (a + b) / METERS_PER_MILE);
+}
+
+// How long with zero fixes (good or bad) before the live speed/status is
+// declared stale rather than left showing whatever it last said. Well above
+// the ~1s cadence watchPosition typically delivers (and the 5s maximumAge
+// it's configured with), but short enough that "phone put away" is caught
+// within single-digit seconds, not minutes.
+const STALE_FIX_MS = 8000;
+const STALE_CHECK_INTERVAL_MS = 2000;
 
 // GeolocationPositionError codes, per spec.
 const GEO_PERMISSION_DENIED = 1;
@@ -249,6 +278,21 @@ export function startMileageTracking(onUpdate, options = {}) {
   // can show it. Geolocation failures are otherwise indistinguishable from
   // the outside, and guessing at them from behaviour alone has cost time.
   let lastError = null;
+  // The accuracy (metres) that came with lastFix's position — kept alongside
+  // it so the stop latch can size its tolerance to what both endpoints of a
+  // fix-to-fix delta actually reported, not a single guessed constant.
+  let lastFixAccuracy = null;
+  // Confirmed 2026-10-03 from a real capture: a 7+ minute total loss of GPS
+  // fixes (phone off its mount, out of sky view) left the live speed/status
+  // frozen at whatever they were — accurate through a real stop, in that
+  // capture, still showing a stale non-zero speed the whole time. The
+  // existing imprecise-fix path already nulls speed out when a BAD fix
+  // arrives; nothing handled the case of NO fix arriving at all. lastFixAt
+  // marks every real callback (good or bad-but-received); the watchdog below
+  // declares it stale only once nothing has arrived for a while.
+  let lastFixAt = null;
+  let staleReported = false;
+  let staleWatchdog = null;
 
   const report = () =>
     onUpdate({
@@ -267,6 +311,8 @@ export function startMileageTracking(onUpdate, options = {}) {
   // One fix, from either source, normalized to
   // { latitude, longitude, accuracy, speed, heading } + a time in ms.
   const handleFix = ({ latitude, longitude, accuracy, speed, heading }, timeMs) => {
+    lastFixAt = Date.now();
+    staleReported = false;
     lastAccuracy = accuracy ?? null;
 
     // A very inaccurate fix can swing distance wildly, so it isn't recorded —
@@ -324,8 +370,13 @@ export function startMileageTracking(onUpdate, options = {}) {
     // plausibility gate above produced. No baseline yet (delta == null, the
     // very first fix of the drive) counts as "just moved": there's nothing to
     // measure a stop against, and assuming stationary before the drive has
-    // even started isn't the honest default.
-    if (delta == null || delta > STOPPED_LATCH_DISTANCE_MILES) {
+    // even started isn't the honest default. Tolerance scales to both fixes'
+    // own reported accuracy (see stopLatchToleranceMiles) rather than a flat
+    // guess.
+    const latchTolerance = lastFix
+      ? stopLatchToleranceMiles(lastFixAccuracy, accuracy)
+      : STOPPED_LATCH_DISTANCE_MILES;
+    if (delta == null || delta > latchTolerance) {
       lastMovedAt = timeMs;
     } else if (lastMovedAt != null && timeMs - lastMovedAt >= STOPPED_LATCH_MS) {
       lastSpeedMph = 0;
@@ -334,6 +385,7 @@ export function startMileageTracking(onUpdate, options = {}) {
     }
 
     lastFix = { latitude, longitude };
+    lastFixAccuracy = accuracy ?? null;
     route.push({ lat: latitude, lng: longitude });
     status = 'tracking';
     report();
@@ -355,6 +407,23 @@ export function startMileageTracking(onUpdate, options = {}) {
     report();
   };
 
+  // See lastFixAt's comment — declares the live reading stale once nothing
+  // has arrived (not even a rejected/imprecise fix) for STALE_FIX_MS. Mirrors
+  // the existing imprecise-fix path: nulls speed/heading and flips status,
+  // without touching mileage/route, which stay exactly as last recorded.
+  // staleReported avoids re-reporting the same stale state every tick.
+  const startStaleWatchdog = () => {
+    staleWatchdog = setInterval(() => {
+      if (lastFixAt == null || staleReported) return;
+      if (Date.now() - lastFixAt < STALE_FIX_MS) return;
+      staleReported = true;
+      status = 'unavailable';
+      lastSpeedMph = null;
+      lastHeading = null;
+      report();
+    }, STALE_CHECK_INTERVAL_MS);
+  };
+
   // Native + background: the community background-geolocation plugin. Its
   // callback keeps firing while the app is backgrounded (iOS location
   // background mode / Android foreground service).
@@ -363,6 +432,7 @@ export function startMileageTracking(onUpdate, options = {}) {
     let removed = false;
 
     report(); // 'waiting'
+    startStaleWatchdog();
 
     BackgroundGeolocation.addWatcher(
       {
@@ -404,6 +474,7 @@ export function startMileageTracking(onUpdate, options = {}) {
 
     return () => {
       removed = true;
+      if (staleWatchdog != null) clearInterval(staleWatchdog);
       if (watcherId != null) BackgroundGeolocation.removeWatcher({ id: watcherId }).catch(() => {});
     };
   }
@@ -415,6 +486,7 @@ export function startMileageTracking(onUpdate, options = {}) {
   }
 
   report(); // 'waiting', so the UI can say so before the first fix lands
+  startStaleWatchdog();
 
   watchId = navigator.geolocation.watchPosition(
     (position) => handleFix(position.coords, position.timestamp),
@@ -424,5 +496,6 @@ export function startMileageTracking(onUpdate, options = {}) {
 
   return () => {
     if (watchId != null) navigator.geolocation.clearWatch(watchId);
+    if (staleWatchdog != null) clearInterval(staleWatchdog);
   };
 }

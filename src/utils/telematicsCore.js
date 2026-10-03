@@ -97,6 +97,25 @@ export const THRESHOLDS = {
   // estimate and force a re-snap instead of continuing to freeze. Provisional
   // like the rest of THRESHOLDS — tune against real captures.
   gravityStuckMs: 8000,
+  // Confirmed from a real capture, 2026-10-03: a 7+ minute total GPS gap
+  // (phone off its mount, out of sky view) covered both false harsh-turns
+  // AND the one false hard-brake that fired with no speed reading at all —
+  // every false positive that capture produced lined up with a GPS gap, and
+  // the one true hard-brake fired with GPS healthy. But a GPS gap alone
+  // isn't a safe signal to reject on by itself — a tunnel or parking garage
+  // produces the identical symptom (no fixes) while the phone stays mounted
+  // and driving continues normally, and silently dropping a real event
+  // there would defeat the point of a safety feature. The distinguishing
+  // signal is whether the phone's orientation was ALSO disturbed recently:
+  // a tunnel doesn't touch the accelerometer/gyro at all, a handoff does.
+  // So: no GPS speed AND a disturbance or stuck-gravity re-snap within this
+  // window → reject (untrustworthy); no GPS speed but orientation's been
+  // stable → fall through to the existing lenient behavior (trust the
+  // accelerometer alone, same as the tunnel case). Provisional like the
+  // rest of THRESHOLDS — long enough to span a realistic unmount/handoff/
+  // remount sequence, short enough not to distrust the whole rest of the
+  // drive over one jostle.
+  recentDisturbanceMs: 15000,
 };
 
 export function createTelematicsState() {
@@ -115,8 +134,24 @@ export function createTelematicsState() {
     frozenSince: null,
     // GPS speed latched the moment overSince['hard-brake'] was first set —
     // the "onset" speed a candidate brake is judged against (see
-    // hardBrakeMinSpeedDropMph). Cleared alongside overSince.
+    // hardBrakeMinSpeedDropMph). Cleared alongside overSince. Latched from
+    // lastKnownSpeed, not the instantaneous sample — see that field's
+    // comment for why.
     speedAtBrakeOnset: null,
+    // The most recent non-null speed reading, updated every sample
+    // regardless of brake/turn state. A hard-brake's onset can land on the
+    // exact sample a GPS gap begins (speed already null that instant) — using
+    // the last known-good value instead of the instantaneous one means a
+    // real onset still has a real number to compare against once GPS
+    // resumes, rather than silently defaulting to lenient for the rest of
+    // the gap because the one sample it happened to latch on was empty.
+    lastKnownSpeed: null,
+    // Last sample timestamps where (respectively) the raw-magnitude
+    // disturbance gate tripped, and the stuck-gravity re-snap fired — null
+    // until the first one. Drives the no-GPS/recent-disturbance reject in
+    // consider() (see recentDisturbanceMs).
+    lastDisturbedAt: null,
+    lastSnapAt: null,
   };
 }
 
@@ -176,6 +211,7 @@ export function processSample(state, sample, opts = {}) {
       state.gy = sample.y;
       state.gz = sample.z;
       state.frozenSince = now;
+      state.lastSnapAt = now;
       snapped = true;
     } else {
       gAlpha = 0;
@@ -203,20 +239,30 @@ export function processSample(state, sample, opts = {}) {
   // that's sliding or getting jostled adds real force beyond that.
   const rawMag = Math.hypot(sample.x, sample.y, sample.z);
   const disturbed = Math.abs(rawMag - G) > th.disturbanceMagnitudeMs2;
+  if (disturbed) state.lastDisturbedAt = now;
 
   const speed = sample.speedMph;
+  if (speed != null) state.lastKnownSpeed = speed;
   const movingFastEnough = speed == null || speed >= th.minSpeedMph;
+  // See recentDisturbanceMs's comment: no GPS to corroborate with, combined
+  // with a recent sign the phone's orientation was actually disturbed (not
+  // just "no fix," which a tunnel produces too) — don't trust the
+  // accelerometer alone right now.
+  const untrustworthyGap =
+    speed == null &&
+    ((state.lastDisturbedAt != null && now - state.lastDisturbedAt < th.recentDisturbanceMs) ||
+      (state.lastSnapAt != null && now - state.lastSnapAt < th.recentDisturbanceMs));
 
   const events = [];
   const consider = (type, over) => {
-    if (!warm || !over || !movingFastEnough || disturbed) {
+    if (!warm || !over || !movingFastEnough || disturbed || untrustworthyGap) {
       state.overSince[type] = null;
       if (type === 'hard-brake') state.speedAtBrakeOnset = null;
       return;
     }
     if (state.overSince[type] == null) {
       state.overSince[type] = now;
-      if (type === 'hard-brake') state.speedAtBrakeOnset = speed;
+      if (type === 'hard-brake') state.speedAtBrakeOnset = state.lastKnownSpeed;
     }
     if (now - state.overSince[type] < th.eventMinDurationMs) return;
     if (now - state.lastFired[type] < th.eventCooldownMs) return;
@@ -229,8 +275,17 @@ export function processSample(state, sample, opts = {}) {
       // that's still sustaining just needs another sample or two for GPS to
       // catch up, so keep retrying rather than discarding the window.
       const onset = state.speedAtBrakeOnset;
-      if (onset != null && speed != null && onset - speed < th.hardBrakeMinSpeedDropMph) {
-        return;
+      if (onset != null) {
+        // We had a real GPS reading when this candidate began, so there's
+        // something concrete to confirm against — if GPS has since gone
+        // quiet, wait for it rather than firing blind. Confirmed from a
+        // drive where a short (~18s) GPS gap started right as mild braking
+        // began: with a known onset speed and no CURRENT reading, letting it
+        // through by default (the old behavior) fired on no real evidence
+        // either way. Only the genuine "never had GPS at all this drive"
+        // case below stays lenient.
+        if (speed == null) return;
+        if (onset - speed < th.hardBrakeMinSpeedDropMph) return;
       }
     }
     state.lastFired[type] = now;
