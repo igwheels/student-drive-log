@@ -24,6 +24,16 @@ export const THRESHOLDS = {
   // Harsh turn: smoothed yaw rate about the vertical axis, deg/s. A brisk
   // corner is ~15–25; a swerve or a corner taken too fast passes ~40.
   harshTurnDegS: 40,
+  // Confirmed from a real capture, 2026-10-03 (phone handed to a passenger
+  // mid-drive): smoothed yaw rate hit 115°/s while GPS speed held rock
+  // steady — no car yaws anywhere near that fast; that's the phone itself
+  // spinning in a hand, not the vehicle turning. Above this, a "turn" isn't
+  // treated as real at all, same as a disturbance — reject outright rather
+  // than merely count it as a severe one. Provisional like the rest of
+  // THRESHOLDS: picked well above the ~40–60°/s a sharp real swerve could
+  // plausibly reach, but there's no captured example yet of a genuine
+  // extreme evasive maneuver to calibrate the ceiling precisely against.
+  implausibleYawDegS: 90,
   // The signal must stay past threshold this long before an event fires —
   // rejects one-off spikes (a pothole, the phone being picked up).
   eventMinDurationMs: 250,
@@ -32,6 +42,18 @@ export const THRESHOLDS = {
   // Below this GPS speed it isn't a driving event (phone jostled while parked
   // or carried). Lenient when speed is unknown — see processSample.
   minSpeedMph: 5,
+  // Confirmed from the same 2026-10-03 capture: a candidate hard-brake fired
+  // while GPS speed held rock steady at ~58mph the whole time — a real hard
+  // brake, by definition, measurably slows the car down. Require GPS speed
+  // to have actually dropped at least this much, latched from the moment
+  // the raw signal first crossed hardBrakeMs2 (see processSample's
+  // speedAtOnset), before the event is allowed to fire — not merely that
+  // the car was moving. Lenient when speed is unknown, same as minSpeedMph.
+  // Deliberately modest: ~0.45g sustained for even a fraction of a second
+  // sheds several mph, so this is a low bar for a real brake to clear while
+  // still rejecting a flat-speed false alarm outright. Provisional like the
+  // rest of THRESHOLDS.
+  hardBrakeMinSpeedDropMph: 2,
   // Exponential smoothing on the event signals (0 = frozen, 1 = raw sample).
   signalSmoothing: 0.35,
   // Slow low-pass that estimates the gravity vector, subtracted from the
@@ -91,6 +113,10 @@ export function createTelematicsState() {
     // continuously — null whenever it's not currently frozen. Drives the
     // stuck-plateau re-snap in processSample.
     frozenSince: null,
+    // GPS speed latched the moment overSince['hard-brake'] was first set —
+    // the "onset" speed a candidate brake is judged against (see
+    // hardBrakeMinSpeedDropMph). Cleared alongside overSince.
+    speedAtBrakeOnset: null,
   };
 }
 
@@ -185,13 +211,31 @@ export function processSample(state, sample, opts = {}) {
   const consider = (type, over) => {
     if (!warm || !over || !movingFastEnough || disturbed) {
       state.overSince[type] = null;
+      if (type === 'hard-brake') state.speedAtBrakeOnset = null;
       return;
     }
-    if (state.overSince[type] == null) state.overSince[type] = now;
+    if (state.overSince[type] == null) {
+      state.overSince[type] = now;
+      if (type === 'hard-brake') state.speedAtBrakeOnset = speed;
+    }
     if (now - state.overSince[type] < th.eventMinDurationMs) return;
     if (now - state.lastFired[type] < th.eventCooldownMs) return;
+    if (type === 'hard-brake') {
+      // See hardBrakeMinSpeedDropMph's comment: require GPS to corroborate
+      // an actual slowdown since this candidate began, not just that the
+      // car was moving. Lenient (let it through) whenever either reading is
+      // unavailable — same philosophy as movingFastEnough. Deliberately
+      // doesn't reset overSince/speedAtBrakeOnset on failure: a real brake
+      // that's still sustaining just needs another sample or two for GPS to
+      // catch up, so keep retrying rather than discarding the window.
+      const onset = state.speedAtBrakeOnset;
+      if (onset != null && speed != null && onset - speed < th.hardBrakeMinSpeedDropMph) {
+        return;
+      }
+    }
     state.lastFired[type] = now;
     state.overSince[type] = null;
+    if (type === 'hard-brake') state.speedAtBrakeOnset = null;
     events.push({
       type,
       magnitude: type === 'harsh-turn' ? state.smYaw : state.smBrake,
@@ -202,7 +246,12 @@ export function processSample(state, sample, opts = {}) {
   // A turn also throws linear accel, so gate hard-brake on low yaw to keep one
   // physical event from firing as both.
   consider('hard-brake', state.smBrake > th.hardBrakeMs2 && state.smYaw < th.harshTurnDegS);
-  consider('harsh-turn', state.smYaw > th.harshTurnDegS);
+  // Excludes implausibly fast yaw (see implausibleYawDegS) — that's the
+  // phone spinning in a hand, not the vehicle turning.
+  consider(
+    'harsh-turn',
+    state.smYaw > th.harshTurnDegS && state.smYaw <= th.implausibleYawDegS
+  );
 
   return {
     events,
