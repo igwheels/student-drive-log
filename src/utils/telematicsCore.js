@@ -60,6 +60,21 @@ export const THRESHOLDS = {
   // orientation tracking, not a threshold. Still unverified like the rest of
   // THRESHOLDS — tune with sdl_telematics='capture' + replay-telematics.mjs.
   disturbanceMagnitudeMs2: 3.5,
+  // Confirmed from a real capture, 2026-10-03: the freeze gate below has no
+  // way back once it's engaged — a phone that gets picked up/reoriented
+  // smoothly enough to not trip disturbanceMagnitudeMs2 (no rawMag spike,
+  // just a changed axis mapping — the gap the comment above already named)
+  // left smBrake pinned at ~10.36 m/s^2, over 1g, for the rest of a
+  // 27-minute drive: once state.smBrake stays above half the hard-brake
+  // threshold, gAlpha stays 0 forever, and the stale bias is exactly what
+  // keeps it there. Only the 5mph speed floor kept that capture from firing
+  // for real — it happened to be stopped. If frozen continuously this long,
+  // it isn't a real ongoing manoeuvre (no street hard-brake or turn sustains
+  // past-threshold g for anywhere near this long — the car's long since
+  // stopped or the turn's long since over), so treat it as a stale gravity
+  // estimate and force a re-snap instead of continuing to freeze. Provisional
+  // like the rest of THRESHOLDS — tune against real captures.
+  gravityStuckMs: 8000,
 };
 
 export function createTelematicsState() {
@@ -72,6 +87,10 @@ export function createTelematicsState() {
     smYaw: 0,
     overSince: { 'hard-brake': null, 'harsh-turn': null },
     lastFired: { 'hard-brake': 0, 'harsh-turn': 0 },
+    // When the gravity freeze gate (see gravityStuckMs) last engaged
+    // continuously — null whenever it's not currently frozen. Drives the
+    // stuck-plateau re-snap in processSample.
+    frozenSince: null,
   };
 }
 
@@ -113,19 +132,37 @@ export function processSample(state, sample, opts = {}) {
   // low-passed into "gravity" and self-cancelled. Both failure directions
   // were caught with scripts/replay-telematics.mjs.
   let gAlpha;
+  let snapped = false;
   if (!warm) {
     gAlpha = th.gravityWarmupSmoothing;
+    state.frozenSince = null;
   } else if (
     state.smBrake > th.hardBrakeMs2 * 0.5 ||
     state.smYaw > th.harshTurnDegS * 0.5
   ) {
-    gAlpha = 0;
+    if (state.frozenSince == null) state.frozenSince = now;
+    if (now - state.frozenSince >= th.gravityStuckMs) {
+      // See gravityStuckMs's comment — frozen implausibly long, more likely
+      // a stale estimate than a real ongoing event. Snap straight to the
+      // current raw reading rather than another slow blend, and start the
+      // freeze window over so a genuinely-stuck sensor can't wedge forever.
+      state.gx = sample.x;
+      state.gy = sample.y;
+      state.gz = sample.z;
+      state.frozenSince = now;
+      snapped = true;
+    } else {
+      gAlpha = 0;
+    }
   } else {
     gAlpha = th.gravitySmoothing;
+    state.frozenSince = null;
   }
-  state.gx += gAlpha * (sample.x - state.gx);
-  state.gy += gAlpha * (sample.y - state.gy);
-  state.gz += gAlpha * (sample.z - state.gz);
+  if (!snapped) {
+    state.gx += gAlpha * (sample.x - state.gx);
+    state.gy += gAlpha * (sample.y - state.gy);
+    state.gz += gAlpha * (sample.z - state.gz);
+  }
 
   const linMag = Math.hypot(sample.x - state.gx, sample.y - state.gy, sample.z - state.gz);
   const yawRate = Math.abs(sample.rAlpha || 0);
