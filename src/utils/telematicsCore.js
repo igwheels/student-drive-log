@@ -116,6 +116,22 @@ export const THRESHOLDS = {
   // remount sequence, short enough not to distrust the whole rest of the
   // drive over one jostle.
   recentDisturbanceMs: 15000,
+  // Confirmed from a real capture, 2026-10-04: three genuine hard brakes
+  // (GPS speed dropping ~45mph->27mph each time) went undetected because the
+  // ~1Hz GPS update lagged the ~1s accelerometer g-spike — by the sample
+  // where GPS finally reported the drop, smBrake had already decayed back
+  // under hardBrakeMs2, and the old logic cleared speedAtBrakeOnset the
+  // instant `over` went false, so there was nothing left to confirm against.
+  // A real hard brake's g-spike is brief; the GPS fix that proves it
+  // happened routinely arrives after the spike itself has already ended.
+  // Once a candidate satisfies the magnitude+duration gate, keep its onset
+  // speed alive for this long waiting on GPS corroboration even after the
+  // signal itself drops back under threshold, rather than discarding it on
+  // the very next sample. Long enough to span a couple of 1Hz GPS updates,
+  // short enough not to confirm an unrelated later slowdown as the same
+  // event. Provisional like the rest of THRESHOLDS — tune against real
+  // captures.
+  hardBrakeConfirmGraceMs: 2000,
 };
 
 export function createTelematicsState() {
@@ -152,6 +168,18 @@ export function createTelematicsState() {
     // consider() (see recentDisturbanceMs).
     lastDisturbedAt: null,
     lastSnapAt: null,
+    // When the magnitude+duration gate for a hard-brake candidate was first
+    // satisfied — null whenever there's no candidate awaiting GPS
+    // confirmation. Separate from overSince['hard-brake'] (which tracks the
+    // raw over-threshold streak): see hardBrakeConfirmGraceMs's comment for
+    // why a candidate has to survive past the moment the g-spike itself
+    // subsides.
+    brakeQualifiedAt: null,
+    // Peak smBrake seen during the current hard-brake candidate's
+    // over-threshold streak, latched for the event's reported magnitude —
+    // by the time GPS confirms a candidate that outlived its own g-spike,
+    // the live smBrake value has already decayed back down.
+    brakePeakMag: null,
   };
 }
 
@@ -254,57 +282,91 @@ export function processSample(state, sample, opts = {}) {
       (state.lastSnapAt != null && now - state.lastSnapAt < th.recentDisturbanceMs));
 
   const events = [];
-  const consider = (type, over) => {
-    if (!warm || !over || !movingFastEnough || disturbed || untrustworthyGap) {
-      state.overSince[type] = null;
-      if (type === 'hard-brake') state.speedAtBrakeOnset = null;
+
+  const resetBrakeCandidate = () => {
+    state.overSince['hard-brake'] = null;
+    state.speedAtBrakeOnset = null;
+    state.brakeQualifiedAt = null;
+    state.brakePeakMag = null;
+  };
+
+  // Hard-brake gets its own path (rather than sharing the simple harsh-turn
+  // one below) because of hardBrakeConfirmGraceMs: a qualified candidate has
+  // to keep living, waiting on GPS, even after `over` itself goes false.
+  const considerHardBrake = (over) => {
+    if (!warm || disturbed || untrustworthyGap || !movingFastEnough) {
+      resetBrakeCandidate();
       return;
     }
-    if (state.overSince[type] == null) {
-      state.overSince[type] = now;
-      if (type === 'hard-brake') state.speedAtBrakeOnset = state.lastKnownSpeed;
-    }
-    if (now - state.overSince[type] < th.eventMinDurationMs) return;
-    if (now - state.lastFired[type] < th.eventCooldownMs) return;
-    if (type === 'hard-brake') {
-      // See hardBrakeMinSpeedDropMph's comment: require GPS to corroborate
-      // an actual slowdown since this candidate began, not just that the
-      // car was moving. Lenient (let it through) whenever either reading is
-      // unavailable — same philosophy as movingFastEnough. Deliberately
-      // doesn't reset overSince/speedAtBrakeOnset on failure: a real brake
-      // that's still sustaining just needs another sample or two for GPS to
-      // catch up, so keep retrying rather than discarding the window.
-      const onset = state.speedAtBrakeOnset;
-      if (onset != null) {
-        // We had a real GPS reading when this candidate began, so there's
-        // something concrete to confirm against — if GPS has since gone
-        // quiet, wait for it rather than firing blind. Confirmed from a
-        // drive where a short (~18s) GPS gap started right as mild braking
-        // began: with a known onset speed and no CURRENT reading, letting it
-        // through by default (the old behavior) fired on no real evidence
-        // either way. Only the genuine "never had GPS at all this drive"
-        // case below stays lenient.
-        if (speed == null) return;
-        if (onset - speed < th.hardBrakeMinSpeedDropMph) return;
+
+    if (over) {
+      if (state.overSince['hard-brake'] == null) {
+        state.overSince['hard-brake'] = now;
+        state.speedAtBrakeOnset = state.lastKnownSpeed;
+        state.brakePeakMag = state.smBrake;
+      } else {
+        state.brakePeakMag = Math.max(state.brakePeakMag, state.smBrake);
       }
+      if (
+        state.brakeQualifiedAt == null &&
+        now - state.overSince['hard-brake'] >= th.eventMinDurationMs
+      ) {
+        state.brakeQualifiedAt = now;
+      }
+    } else if (state.brakeQualifiedAt == null) {
+      // Dropped back under threshold before ever satisfying the duration
+      // gate — a one-off spike (pothole, pickup), not a candidate.
+      resetBrakeCandidate();
+      return;
     }
-    state.lastFired[type] = now;
-    state.overSince[type] = null;
-    if (type === 'hard-brake') state.speedAtBrakeOnset = null;
-    events.push({
-      type,
-      magnitude: type === 'harsh-turn' ? state.smYaw : state.smBrake,
-      at: now,
-    });
+    // else: the g-spike subsided after already qualifying — fall through and
+    // keep resolving against the latched onset/peak for up to
+    // hardBrakeConfirmGraceMs (see its comment).
+
+    if (state.brakeQualifiedAt == null) return;
+
+    const expired = now - state.brakeQualifiedAt > th.hardBrakeConfirmGraceMs;
+    if (now - state.lastFired['hard-brake'] < th.eventCooldownMs) {
+      if (expired) resetBrakeCandidate();
+      return;
+    }
+    // See hardBrakeMinSpeedDropMph's comment: require GPS to corroborate an
+    // actual slowdown since this candidate began, not just that the car was
+    // moving. Lenient (let it through) when there was never an onset reading
+    // at all, same philosophy as movingFastEnough.
+    const onset = state.speedAtBrakeOnset;
+    const confirmed =
+      onset == null || (speed != null && onset - speed >= th.hardBrakeMinSpeedDropMph);
+    if (!confirmed) {
+      if (expired) resetBrakeCandidate();
+      return;
+    }
+
+    state.lastFired['hard-brake'] = now;
+    const magnitude = state.brakePeakMag;
+    resetBrakeCandidate();
+    events.push({ type: 'hard-brake', magnitude, at: now });
+  };
+
+  const considerHarshTurn = (over) => {
+    if (!warm || !over || !movingFastEnough || disturbed || untrustworthyGap) {
+      state.overSince['harsh-turn'] = null;
+      return;
+    }
+    if (state.overSince['harsh-turn'] == null) state.overSince['harsh-turn'] = now;
+    if (now - state.overSince['harsh-turn'] < th.eventMinDurationMs) return;
+    if (now - state.lastFired['harsh-turn'] < th.eventCooldownMs) return;
+    state.lastFired['harsh-turn'] = now;
+    state.overSince['harsh-turn'] = null;
+    events.push({ type: 'harsh-turn', magnitude: state.smYaw, at: now });
   };
 
   // A turn also throws linear accel, so gate hard-brake on low yaw to keep one
   // physical event from firing as both.
-  consider('hard-brake', state.smBrake > th.hardBrakeMs2 && state.smYaw < th.harshTurnDegS);
+  considerHardBrake(state.smBrake > th.hardBrakeMs2 && state.smYaw < th.harshTurnDegS);
   // Excludes implausibly fast yaw (see implausibleYawDegS) — that's the
   // phone spinning in a hand, not the vehicle turning.
-  consider(
-    'harsh-turn',
+  considerHarshTurn(
     state.smYaw > th.harshTurnDegS && state.smYaw <= th.implausibleYawDegS
   );
 
