@@ -366,6 +366,21 @@ export function AppProvider({ children }) {
   }, [students, logs, hydrated, user]);
 
   // Load owned + shared students (and their logs) from Firestore when user logs in
+  // — also re-runs whenever hasFamilyPack flips. Reported 2026-10-04:
+  // functions/src/entitlementFanout.js correctly denormalizes
+  // familyPackActive/locked onto every student document the moment the
+  // entitlement doc changes (refund locks them, a later repurchase unlocks
+  // them again), but this effect used to only depend on [user?.id,
+  // user?.email, hydrated] — the owner's OWN live entitlement subscription
+  // (watchOwnFamilyPack, below) flips `hasFamilyPack` immediately, which is
+  // enough to re-enable the "add a student" / "share" UI, but the already-
+  // loaded `students` array (one-time getDocs(), not a subscription) kept
+  // its stale `locked: true` from before the repurchase until the next full
+  // reload — so a student correctly unlocked server-side stayed grayed out
+  // client-side for the rest of the session. Refetching here closes that
+  // gap in both directions (it's symmetric: a refund during an active
+  // session now grays students out immediately too, not just on next
+  // launch).
   useEffect(() => {
     if (!user?.id || !hydrated) return;
 
@@ -467,7 +482,7 @@ export function AppProvider({ children }) {
     };
 
     loadFromFirestore();
-  }, [user?.id, user?.email, hydrated]);
+  }, [user?.id, user?.email, hydrated, hasFamilyPack]);
 
   const addStudent = async (student) => {
     const id = Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
