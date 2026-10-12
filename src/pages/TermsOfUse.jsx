@@ -1,5 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
+import { STATE_REQUIREMENTS_SYNCED_AT } from '../data/stateRequirements';
 
 export default function TermsOfUse() {
   const navigate = useNavigate();
@@ -59,6 +60,9 @@ export default function TermsOfUse() {
         table. These laws change, and our information may be incomplete or out of date. The
         requirements shown are for general reference only. Always confirm current requirements with
         your state's licensing agency.
+      </p>
+      <p className="legal-updated">
+        Last synced to IIHS's table: {STATE_REQUIREMENTS_SYNCED_AT}.
       </p>
 
       <h3>5. Sharing dashboards with others</h3>

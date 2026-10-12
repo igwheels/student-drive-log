@@ -8,8 +8,21 @@
  * note: caveats that should be surfaced to the parent where relevant.
  *
  * Laws change — verify with the state DMV before relying on these numbers,
- * and re-check this table periodically.
+ * and re-check this table periodically. scripts/check-iihs-requirements.js
+ * (.github/workflows/check-iihs-requirements.yml, monthly) emails a diff
+ * when IIHS's table no longer matches what's below, but does not edit this
+ * file itself — a human reviews and edits it, same as the October 2026
+ * update this was built for.
+ *
+ * STATE_REQUIREMENTS_SYNCED_AT (below) is shown to users (Terms of Use §4,
+ * AddStudent) as "last synced," not "current as of" — it's a true claim
+ * about when a human last checked this file against IIHS, not a claim that
+ * today's data is current. UPDATE IT IN THE SAME COMMIT as any data change
+ * above, or the displayed date becomes actively wrong rather than just
+ * vague — worse than not showing a date at all.
  */
+export const STATE_REQUIREMENTS_SYNCED_AT = 'October 2026';
+
 export const STATE_REQUIREMENTS = {
   AL: { name: 'Alabama', totalHours: 50, nightHours: 0, note: 'Waived with driver education.' },
   AK: { name: 'Alaska', totalHours: 40, nightHours: 10, note: '10 hours must be at night or in inclement weather.' },

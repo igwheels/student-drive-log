@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
-import { STATE_LIST, STATE_REQUIREMENTS } from '../data/stateRequirements';
+import { STATE_LIST, STATE_REQUIREMENTS, STATE_REQUIREMENTS_SYNCED_AT } from '../data/stateRequirements';
 import { FREE_STUDENT_LIMIT } from '../utils/entitlements';
 
 export default function AddStudent() {
@@ -157,8 +157,8 @@ export default function AddStudent() {
             rel="noopener noreferrer"
           >
             IIHS Graduated Licensing Laws table
-          </a>
-          . Laws change — verify with your state DMV.
+          </a>{' '}
+          (last synced {STATE_REQUIREMENTS_SYNCED_AT}). Laws change — verify with your state DMV.
         </p>
       )}
 
