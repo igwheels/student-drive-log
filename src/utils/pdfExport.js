@@ -2,6 +2,7 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { localOffsetMinutes, toZonedTimeInput } from './driveTime';
 import { downloadFileName } from './fileName';
+import { saveOrShareBlob } from './saveFile';
 import { affidavitRulesFor } from '../data/stateAffidavits';
 
 /**
@@ -103,7 +104,7 @@ function signatureLine(doc, { x, y, width, label }) {
   return y + 11;
 }
 
-export function exportAffidavitPdf({ student, req, logs, totals, parentName }) {
+export async function exportAffidavitPdf({ student, req, logs, totals, parentName }) {
   const doc = new jsPDF({ unit: 'pt', format: 'letter' });
 
   // Every string reaching the page is normalised, rather than relying on each
@@ -388,5 +389,11 @@ export function exportAffidavitPdf({ student, req, logs, totals, parentName }) {
     });
   }
 
-  doc.save(downloadFileName([student.firstName, student.lastName, 'dmv-affidavit'], 'pdf'));
+  // doc.save() triggers jsPDF's own <a download> — a dead end inside a
+  // Capacitor native shell (see saveOrShareBlob's comment), which is exactly
+  // why this button did nothing for a generic-form state: every OTHER export
+  // in the app (CSV, a state's own filled form) already goes through
+  // saveOrShareBlob; this was the one left calling jsPDF's save directly.
+  const blob = doc.output('blob');
+  await saveOrShareBlob(blob, downloadFileName([student.firstName, student.lastName, 'dmv-affidavit'], 'pdf'));
 }

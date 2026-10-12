@@ -132,6 +132,10 @@ export default function Dashboard() {
   // carries the state's own official form, that is what the parent wants —
   // the generic affidavit would only be a second-best copy of it. Everywhere
   // else the generic affidavit is the document.
+  //
+  // Async (exportAffidavitPdf now saves via saveOrShareBlob, not jsPDF's own
+  // doc.save()) — every caller below awaits it rather than firing-and-
+  // forgetting the way this used to.
   const buildGenericAffidavit = () =>
     exportAffidavitPdf({
       student,
@@ -144,7 +148,19 @@ export default function Dashboard() {
   const handleDmvForm = async () => {
     setFormStatus('');
     if (!hasStateForm(student.state)) {
-      buildGenericAffidavit();
+      // Reported 2026-10-12: this branch called buildGenericAffidavit()
+      // without awaiting it and with no try/catch at all — exportAffidavitPdf
+      // used to call jsPDF's doc.save(), a silent no-op inside a Capacitor
+      // native shell (see saveOrShareBlob's comment), so the button did
+      // nothing for every state without a specific official form, with no
+      // error and no feedback either way. Now awaited, with the same
+      // success/failure reporting the specific-form branch already had.
+      try {
+        await buildGenericAffidavit();
+        setFormStatus('General affidavit downloaded. Add anything the app can\'t know, then sign it by hand.');
+      } catch (e) {
+        setFormStatus(`Could not generate the affidavit (${e.message}).`);
+      }
       return;
     }
     try {
@@ -165,11 +181,20 @@ export default function Dashboard() {
       // The official form is the right document, so failing to produce it is
       // worth saying out loud rather than quietly handing over a different
       // one — but a general affidavit still beats nothing.
-      buildGenericAffidavit();
-      setFormStatus(
-        `Could not load ${stateFormLabel(student.state)} (${e.message}). ` +
-          'Downloaded the general affidavit instead — check it against your state’s own form.'
-      );
+      try {
+        await buildGenericAffidavit();
+        setFormStatus(
+          `Could not load ${stateFormLabel(student.state)} (${e.message}). ` +
+            'Downloaded the general affidavit instead — check it against your state’s own form.'
+        );
+      } catch (e2) {
+        // Both the official form AND the generic fallback failed to save —
+        // say so rather than claim a download that didn't happen.
+        setFormStatus(
+          `Could not load ${stateFormLabel(student.state)} (${e.message}), and the general affidavit ` +
+            `fallback also failed (${e2.message}).`
+        );
+      }
     }
   };
 
