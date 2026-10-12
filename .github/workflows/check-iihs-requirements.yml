@@ -1,0 +1,21 @@
+name: Check IIHS graduated licensing laws table
+
+# Monthly, not live/per-request -- see scripts/check-iihs-requirements.js's
+# header comment. 06:00 UTC on the 1st of each month.
+on:
+  schedule:
+    - cron: '0 6 1 * *'
+  workflow_dispatch:
+
+jobs:
+  check-iihs-requirements:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm ci
+      - run: node scripts/check-iihs-requirements.js
+        env:
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}

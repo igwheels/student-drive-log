@@ -1,7 +1,7 @@
 /**
  * Supervised driving requirements by state.
- * Source: IIHS Graduated Licensing Laws table (July 2026).
- * https://www.iihs.org/research-areas/teenagers/graduated-licensing-laws-table
+ * Source: IIHS Graduated Licensing Laws table (October 2026).
+ * https://www.iihs.org/topics/teenagers/graduated-licensing-laws-table
  *
  * totalHours: minimum supervised behind-the-wheel hours in the learner stage.
  * nightHours: portion that must occur at night (0 = no night requirement).
@@ -34,7 +34,7 @@ export const STATE_REQUIREMENTS = {
   MD: { name: 'Maryland', totalHours: 60, nightHours: 10 },
   MA: { name: 'Massachusetts', totalHours: 40, nightHours: 0, note: '30 hours if a driver skills development program is completed.' },
   MI: { name: 'Michigan', totalHours: 50, nightHours: 10 },
-  MN: { name: 'Minnesota', totalHours: 50, nightHours: 15 },
+  MN: { name: 'Minnesota', totalHours: 40, nightHours: 15 },
   MS: { name: 'Mississippi', totalHours: 0, nightHours: 0, note: 'No hours requirement, but the permit must be held at least 12 months (6 with an approved driver education course) before licensing.' },
   MO: { name: 'Missouri', totalHours: 40, nightHours: 10 },
   MT: { name: 'Montana', totalHours: 50, nightHours: 10, note: '75 hours (15 at night) if using the alternative online traffic education path.' },
@@ -45,7 +45,7 @@ export const STATE_REQUIREMENTS = {
   NM: { name: 'New Mexico', totalHours: 50, nightHours: 10 },
   NY: { name: 'New York', totalHours: 50, nightHours: 15 },
   NC: { name: 'North Carolina', totalHours: 60, nightHours: 10, note: '+12 hours (6 at night) required for a full provisional license.' },
-  ND: { name: 'North Dakota', totalHours: 50, nightHours: 10, note: 'Applies to permit holders under 16 (NDCC 39-06-05); no hour/log requirement at all if 16 or older.' },
+  ND: { name: 'North Dakota', totalHours: 50, nightHours: 0, note: 'Applies to permit holders under 16 (NDCC 39-06-05); no hour/log requirement at all if 16 or older.' },
   OH: { name: 'Ohio', totalHours: 50, nightHours: 10 },
   OK: { name: 'Oklahoma', totalHours: 50, nightHours: 10 },
   OR: { name: 'Oregon', totalHours: 50, nightHours: 0, note: '100 hours without driver education.' },

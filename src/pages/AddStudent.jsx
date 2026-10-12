@@ -152,7 +152,7 @@ export default function AddStudent() {
         <p style={{ color: 'var(--muted)', fontSize: 12, marginTop: 20 }}>
           * Requirements sourced from the{' '}
           <a
-            href="https://www.iihs.org/research-areas/teenagers/graduated-licensing-laws-table"
+            href="https://www.iihs.org/topics/teenagers/graduated-licensing-laws-table"
             target="_blank"
             rel="noopener noreferrer"
           >
