@@ -132,6 +132,34 @@ export const THRESHOLDS = {
   // event. Provisional like the rest of THRESHOLDS — tune against real
   // captures.
   hardBrakeConfirmGraceMs: 2000,
+  // Confirmed from a real capture, 2026-10-12 (phone unmounted, held, no GPS
+  // fix yet acquired this early in the drive): a hard-brake fired 6.4s into
+  // the drive at smBrake=9.36 m/s^2 (over 2x threshold) from the phone being
+  // picked up and rotated — raw x/y/z went from (-1.17,-0.08,-9.71) to
+  // (0.21,-8.02,-4.73) within one 16ms sample, a ~59deg instantaneous swing
+  // in the raw vector's direction, while its MAGNITUDE barely moved (stayed
+  // within disturbanceMagnitudeMs2 of G the whole time) — exactly the gap
+  // that threshold's own comment already named: a smooth reorientation has
+  // no magnitude anomaly for it to catch, just a changed axis mapping. The
+  // slow gravitySmoothing filter couldn't track a near-instant rotation, so
+  // the stale-vs-new mismatch read as a phantom brake.
+  //
+  // This catches that slice specifically: the angle between consecutive raw
+  // vectors, normalized to deg/s (see processSample's reorientRateDegS) —
+  // a real brake/turn changes the car's (and phone's) acceleration vector
+  // gradually over hundreds of ms; a hand rotating the phone changes its
+  // raw vector's direction almost instantly. Checked across this capture's
+  // full 72 minutes: driving (GPS speed present) maxed out at 1932deg/s
+  // (a bump at 44.8mph); every no-GPS window — this false positive plus
+  // every other pickup/set-down moment in the same drive — hit
+  // 2841-8393deg/s. Picked with margin above the driving max and below the
+  // lowest handling spike. Feeds into the same `disturbed` flag the
+  // magnitude check already sets, so it rides the existing
+  // lastDisturbedAt/untrustworthyGap/cooldown plumbing rather than needing
+  // new state. Validated against exactly one capture so far — provisional
+  // like the rest of THRESHOLDS, tune further once more unmounted-handling
+  // captures confirm this margin holds.
+  reorientationDegS: 2400,
 };
 
 export function createTelematicsState() {
@@ -180,6 +208,15 @@ export function createTelematicsState() {
     // by the time GPS confirms a candidate that outlived its own g-spike,
     // the live smBrake value has already decayed back down.
     brakePeakMag: null,
+    // The previous sample's RAW (x, y, z) and its timestamp — null until the
+    // second sample ever seen. Drives reorientRateDegS in processSample (see
+    // reorientationDegS's comment): the angle between consecutive raw
+    // vectors catches a phone being physically rotated, which the
+    // magnitude-only disturbance check can miss entirely.
+    prevRawX: null,
+    prevRawY: null,
+    prevRawZ: null,
+    prevRawAt: null,
   };
 }
 
@@ -266,7 +303,29 @@ export function processSample(state, sample, opts = {}) {
   // raw magnitude stays near G plus whatever the car is doing, but a phone
   // that's sliding or getting jostled adds real force beyond that.
   const rawMag = Math.hypot(sample.x, sample.y, sample.z);
-  const disturbed = Math.abs(rawMag - G) > th.disturbanceMagnitudeMs2;
+  const magnitudeDisturbed = Math.abs(rawMag - G) > th.disturbanceMagnitudeMs2;
+
+  // See reorientationDegS's comment: the angle between this sample's raw
+  // vector and the previous one, normalized to deg/s — catches a phone
+  // being physically rotated even when its magnitude never leaves G's
+  // neighbourhood (a smooth reorientation, not a slide or impact).
+  let reorientRateDegS = 0;
+  if (state.prevRawAt != null) {
+    const dt = (now - state.prevRawAt) / 1000;
+    const prevMag = Math.hypot(state.prevRawX, state.prevRawY, state.prevRawZ);
+    if (dt > 0 && rawMag > 0.1 && prevMag > 0.1) {
+      const dot = sample.x * state.prevRawX + sample.y * state.prevRawY + sample.z * state.prevRawZ;
+      const cosAngle = Math.min(1, Math.max(-1, dot / (rawMag * prevMag)));
+      const angleDeg = (Math.acos(cosAngle) * 180) / Math.PI;
+      reorientRateDegS = angleDeg / dt;
+    }
+  }
+  state.prevRawX = sample.x;
+  state.prevRawY = sample.y;
+  state.prevRawZ = sample.z;
+  state.prevRawAt = now;
+
+  const disturbed = magnitudeDisturbed || reorientRateDegS > th.reorientationDegS;
   if (disturbed) state.lastDisturbedAt = now;
 
   const speed = sample.speedMph;
@@ -382,6 +441,7 @@ export function processSample(state, sample, opts = {}) {
       warm,
       movingFastEnough,
       rawMag,
+      reorientRateDegS,
       disturbed,
       holdBrakeMs: state.overSince['hard-brake'] == null ? 0 : now - state.overSince['hard-brake'],
       holdYawMs: state.overSince['harsh-turn'] == null ? 0 : now - state.overSince['harsh-turn'],
