@@ -223,6 +223,31 @@ export const THRESHOLDS = {
   // the rest of THRESHOLDS, tune further once more unmounted-handling
   // captures confirm this margin holds.
   reorientationDegS: 2400,
+  // Confirmed from a real capture, 2026-10-13 (phone unmounted for the first
+  // part of a highway drive, mounted for the rest): 5 false harsh-turns fired
+  // at steady highway speed (33-58mph) with neither disturbanceMagnitudeMs2
+  // nor reorientationDegS ever tripping. Both of those catch a SUDDEN
+  // disturbance; this was a gradual tip/slide — smBrake and smYaw climbed
+  // together smoothly over ~1s, not instantly — so the phone itself
+  // physically rotating (and the stale, slowly-adapting gravity estimate
+  // producing a phantom linMag alongside the real gyro rotation) never
+  // crossed either rate-of-change gate.
+  //
+  // Catches it a different way: a real harsh turn's yaw rate and the car's
+  // GPS speed together imply a cornering (centripetal) acceleration —
+  // lateral accel = speed * yawRate. All 5 false turns implied 1.7-3.4 g of
+  // lateral force (24.7-33.2 m/s^2) — physically impossible for a
+  // street-driven passenger car, which loses traction well under 1 g even in
+  // a genuine emergency swerve. A real sharp turn at a plausible speed stays
+  // comfortably under this cap; a loose phone's own rotation, read against
+  // the car's actual (much slower-turning) GPS track, blows past it by
+  // 2-3x. Picked with real margin above a hard emergency maneuver (~0.8-1g)
+  // so a genuine swerve isn't rejected. Lenient when speed is unknown, same
+  // philosophy as the other GPS-dependent checks. Unvalidated against a
+  // confirmed true harsh-turn capture (none exists yet) — provisional like
+  // the rest of THRESHOLDS; revisit if a real sharp turn is ever caught
+  // landing near this cap.
+  harshTurnMaxLateralAccelMs2: 0.6 * G,
 };
 
 export function createTelematicsState() {
@@ -458,6 +483,17 @@ export function processSample(state, sample, opts = {}) {
   }
   const movingFastEnough = speed == null || speed >= th.minSpeedMph;
 
+  // See harshTurnMaxLateralAccelMs2's comment: a real turn's yaw rate and the
+  // car's GPS speed together imply a cornering force; reject a candidate
+  // whose implied force is physically impossible for a street-driven car,
+  // regardless of whether anything tripped `disturbed`/`unstable`. Lenient
+  // when speed is unknown.
+  const impliedLateralAccelMs2 =
+    speed == null ? null : (speed * 0.44704) * ((state.smYaw * Math.PI) / 180);
+  const yawPhysicallyPlausible =
+    impliedLateralAccelMs2 == null ||
+    impliedLateralAccelMs2 <= th.harshTurnMaxLateralAccelMs2;
+
   const events = [];
 
   const resetBrakeCandidate = () => {
@@ -568,7 +604,9 @@ export function processSample(state, sample, opts = {}) {
   // Excludes implausibly fast yaw (see implausibleYawDegS) — that's the
   // phone spinning in a hand, not the vehicle turning.
   considerHarshTurn(
-    state.smYaw > th.harshTurnDegS && state.smYaw <= th.implausibleYawDegS
+    state.smYaw > th.harshTurnDegS &&
+      state.smYaw <= th.implausibleYawDegS &&
+      yawPhysicallyPlausible
   );
 
   return {
@@ -586,6 +624,8 @@ export function processSample(state, sample, opts = {}) {
       reorientRateDegS,
       disturbed,
       unstable,
+      impliedLateralAccelMs2,
+      yawPhysicallyPlausible,
       holdBrakeMs: state.overSince['hard-brake'] == null ? 0 : now - state.overSince['hard-brake'],
       holdYawMs: state.overSince['harsh-turn'] == null ? 0 : now - state.overSince['harsh-turn'],
     },
