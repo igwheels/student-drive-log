@@ -4,6 +4,9 @@
 // plumbing and the debug/capture side effects live in telematics.js.
 
 export const G = 9.80665;
+// m/s^2 -> mph/s, for comparing an accelerometer-claimed deceleration rate
+// against a GPS-measured one (see hardBrakeMinProportion).
+const MPS2_TO_MPH_PER_S = 2.236936;
 
 // ───────────────────────────────────────────────────────────────────────────
 // UNVERIFIED THRESHOLDS.
@@ -97,25 +100,85 @@ export const THRESHOLDS = {
   // estimate and force a re-snap instead of continuing to freeze. Provisional
   // like the rest of THRESHOLDS — tune against real captures.
   gravityStuckMs: 8000,
-  // Confirmed from a real capture, 2026-10-03: a 7+ minute total GPS gap
-  // (phone off its mount, out of sky view) covered both false harsh-turns
-  // AND the one false hard-brake that fired with no speed reading at all —
-  // every false positive that capture produced lined up with a GPS gap, and
-  // the one true hard-brake fired with GPS healthy. But a GPS gap alone
-  // isn't a safe signal to reject on by itself — a tunnel or parking garage
-  // produces the identical symptom (no fixes) while the phone stays mounted
-  // and driving continues normally, and silently dropping a real event
-  // there would defeat the point of a safety feature. The distinguishing
-  // signal is whether the phone's orientation was ALSO disturbed recently:
-  // a tunnel doesn't touch the accelerometer/gyro at all, a handoff does.
-  // So: no GPS speed AND a disturbance or stuck-gravity re-snap within this
-  // window → reject (untrustworthy); no GPS speed but orientation's been
-  // stable → fall through to the existing lenient behavior (trust the
-  // accelerometer alone, same as the tunnel case). Provisional like the
-  // rest of THRESHOLDS — long enough to span a realistic unmount/handoff/
-  // remount sequence, short enough not to distrust the whole rest of the
-  // drive over one jostle.
+  // Originally: no GPS speed AND a disturbance/re-snap within this window
+  // -> reject as untrustworthy (a tunnel doesn't touch the accelerometer,
+  // a handoff does); confirmed from a real capture, 2026-10-03, where a
+  // 7+ minute GPS gap covered every false positive that capture produced.
+  //
+  // Broadened 2026-10-12 after a capture (phone unmounted, held/jostled
+  // for an entire drive, GPS fully available throughout) produced 14 false
+  // events — 7 hard-brake, 7 harsh-turn — because the old gate only ever
+  // applied when speed was null. GPS being present says nothing about
+  // whether the PHONE is currently stable; continuous jostling during
+  // normal driving evades every GPS-gated check by definition, since GPS
+  // obviously isn't missing while the car is being driven. Now drives
+  // `unstable` in processSample unconditionally (see its comment) — same
+  // time constant, same "was there a disturbance or re-snap recently"
+  // question, just no longer gated behind speed being null. Provisional
+  // like the rest of THRESHOLDS — long enough to span a realistic
+  // unmount/handoff/remount sequence, short enough not to distrust the
+  // whole rest of the drive over one jostle; re-validate the exact
+  // duration once more continuously-unmounted captures exist.
   recentDisturbanceMs: 15000,
+  // Confirmed from the same 2026-10-12 capture: even restricted to GPS-
+  // present windows, the old hardBrakeMinSpeedDropMph check only asked
+  // "did speed drop by >=2mph somewhere in this window," never whether
+  // that drop was anywhere close to what the claimed g-force implies. A
+  // 27-second ordinary, gentle coast-down (38mph->12mph, ~1mph/s average —
+  // nothing like a hard stop) provided cover for repeated accelerometer
+  // spikes up to 16.1 m/s^2 (>=3x hardBrakeMs2), each one individually
+  // "confirmed" because the car genuinely was slowing down for an
+  // unrelated, mundane reason at the same time.
+  //
+  // Require the most recently OBSERVED GPS deceleration rate (speed delta
+  // between the last two genuinely distinct fixes, over the real elapsed
+  // time between them — see createTelematicsState's priorKnownSpeed
+  // comment) to be at least this fraction of what the peak accelerometer
+  // magnitude claims (converted to the same mph/s units), not merely
+  // nonzero. Deliberately uses the GPS pair's own real time base rather
+  // than the brake candidate's duration: an earlier version divided the
+  // speed drop by the (often ~200-500ms) candidate window instead, which
+  // overstated the rate by 5-10x whenever a ~1Hz GPS step update happened
+  // to land inside a short candidate window — caught when a second false
+  // brake in the same 2026-10-12 capture (a smooth rhythmic jostle that
+  // never once crossed the magnitude or reorientation disturbance gates —
+  // raw magnitude deviation peaked at 2.15, under disturbanceMagnitudeMs2)
+  // still cleared the original version of this check. GPS inherently
+  // averages/lags a sub-second real spike, so this is deliberately lenient
+  // rather than requiring a close match — picked low enough that a real
+  // brief hard brake (high claimed rate, modest-but-real GPS-measured
+  // rate) still clears it, while rejecting the >10x mismatches this
+  // capture produced. Only applies when there's a real GPS pair to compare
+  // against — same lenient-when-unknown philosophy as
+  // hardBrakeMinSpeedDropMph. Unvalidated against a confirmed true
+  // hard-brake capture (none was available this session) — more
+  // provisional than the rest of THRESHOLDS; check this doesn't reject a
+  // real brake once one is captured again.
+  hardBrakeMinProportion: 0.15,
+  // Confirmed from the same 2026-10-12/13 captures: splitting the stability
+  // gate (see recentDisturbanceMs) and fixing the proportionality time base
+  // still left 2 false hard-brakes, both inside a continuous unmounted-
+  // jostling cluster. What they have in common, confirmed by comparing
+  // against BOTH confirmed true hard-brakes (old captures, 2026-10-03 and
+  // 2026-10-04): smYaw never exceeds the low single digits for the ENTIRE
+  // duration around a real brake — a car braking in a straight line simply
+  // doesn't yaw. The false ones instead show smYaw swinging wildly between
+  // ~0 and 125+ deg/s continuously throughout the same window brake is
+  // elevated; the hard-brake `over` gate's instantaneous `smYaw <
+  // harshTurnDegS` check only caught the brief instants this chaotic signal
+  // happened to dip under 40 by chance, while the candidate quietly
+  // accumulated qualifying duration across several such dips.
+  //
+  // Require smYaw to have stayed under harshTurnDegS for this long before
+  // confirming a hard-brake, not just at the instant it qualified — see
+  // processSample's lastHighYawAt. Deliberately much shorter than
+  // recentDisturbanceMs: a real sharp turn followed by a real hard brake a
+  // couple seconds later should still be trusted, this only needs to
+  // outlast the sub-second oscillation period seen in both false cases.
+  // Provisional like the rest of THRESHOLDS — no case yet of a genuine
+  // brake-while-recovering-from-a-real-turn to confirm this doesn't
+  // overreach.
+  hardBrakeYawQuietMs: 3000,
   // Confirmed from a real capture, 2026-10-04: three genuine hard brakes
   // (GPS speed dropping ~45mph->27mph each time) went undetected because the
   // ~1Hz GPS update lagged the ~1s accelerometer g-spike — by the sample
@@ -155,9 +218,9 @@ export const THRESHOLDS = {
   // 2841-8393deg/s. Picked with margin above the driving max and below the
   // lowest handling spike. Feeds into the same `disturbed` flag the
   // magnitude check already sets, so it rides the existing
-  // lastDisturbedAt/untrustworthyGap/cooldown plumbing rather than needing
-  // new state. Validated against exactly one capture so far — provisional
-  // like the rest of THRESHOLDS, tune further once more unmounted-handling
+  // lastInstabilityAt/unstable/cooldown plumbing rather than needing new
+  // state. Validated against exactly one capture so far — provisional like
+  // the rest of THRESHOLDS, tune further once more unmounted-handling
   // captures confirm this margin holds.
   reorientationDegS: 2400,
 };
@@ -190,12 +253,29 @@ export function createTelematicsState() {
     // resumes, rather than silently defaulting to lenient for the rest of
     // the gap because the one sample it happened to latch on was empty.
     lastKnownSpeed: null,
-    // Last sample timestamps where (respectively) the raw-magnitude
-    // disturbance gate tripped, and the stuck-gravity re-snap fired — null
-    // until the first one. Drives the no-GPS/recent-disturbance reject in
-    // consider() (see recentDisturbanceMs).
-    lastDisturbedAt: null,
-    lastSnapAt: null,
+    // When lastKnownSpeed was last set to a genuinely NEW reading (not a
+    // repeat of the same value while GPS sits between its own ~1Hz
+    // updates), and the previous distinct reading/timestamp pair before
+    // that. Together these give the real elapsed time between two actual
+    // GPS fixes, for computing a true current deceleration rate (see
+    // hardBrakeMinProportion's comment) — using a hard-brake candidate's
+    // own (often much shorter) duration instead systematically overstates
+    // the rate whenever a GPS step update happens to land inside it.
+    lastKnownSpeedAt: null,
+    priorKnownSpeed: null,
+    priorKnownSpeedAt: null,
+    // Last sample timestamp where smYaw exceeded harshTurnDegS — null until
+    // the first one. Drives hardBrakeYawQuietMs's windowed check (see its
+    // comment): a real forward brake keeps yaw low for its whole duration,
+    // not just at the instant a candidate happens to qualify.
+    lastHighYawAt: null,
+    // Last sample timestamp where ANY instability evidence fired — a
+    // magnitude disturbance, a rapid reorientation, or a stuck-gravity
+    // re-snap. Null until the first one. Drives `unstable` in
+    // processSample (see recentDisturbanceMs's comment): unconditional,
+    // not gated behind GPS being unavailable, which is what makes it work
+    // whether the phone is mounted or not.
+    lastInstabilityAt: null,
     // When the magnitude+duration gate for a hard-brake candidate was first
     // satisfied — null whenever there's no candidate awaiting GPS
     // confirmation. Separate from overSince['hard-brake'] (which tracks the
@@ -276,7 +356,6 @@ export function processSample(state, sample, opts = {}) {
       state.gy = sample.y;
       state.gz = sample.z;
       state.frozenSince = now;
-      state.lastSnapAt = now;
       snapped = true;
     } else {
       gAlpha = 0;
@@ -296,6 +375,8 @@ export function processSample(state, sample, opts = {}) {
 
   state.smBrake += th.signalSmoothing * (linMag - state.smBrake);
   state.smYaw += th.signalSmoothing * (yawRate - state.smYaw);
+  // See hardBrakeYawQuietMs's comment.
+  if (state.smYaw > th.harshTurnDegS) state.lastHighYawAt = now;
 
   // See disturbanceMagnitudeMs2's comment: the RAW (pre-gravity-subtraction)
   // vector magnitude straying far from 1 g means something is physically
@@ -326,19 +407,56 @@ export function processSample(state, sample, opts = {}) {
   state.prevRawAt = now;
 
   const disturbed = magnitudeDisturbed || reorientRateDegS > th.reorientationDegS;
-  if (disturbed) state.lastDisturbedAt = now;
+  if (disturbed || snapped) state.lastInstabilityAt = now;
+
+  // Still "settling in" — see justStarted's use below. A drive's first-ever
+  // candidate has nothing before it to have flagged lastInstabilityAt from,
+  // since starting a drive IS a handling event (placing the phone in a
+  // mount, or just setting it down) — there's no prior "settled" baseline
+  // to have detected a change away from yet. Confirmed from a real capture,
+  // 2026-10-12.
+  const justStarted = now - state.startedAt < th.recentDisturbanceMs;
+
+  // Persistent instability, not a per-sample flag — see recentDisturbanceMs's
+  // comment. A phone jostling continuously (unmounted, in a cupholder or a
+  // hand, for an entire drive) doesn't necessarily show `disturbed` on the
+  // EXACT sample a candidate would fire; it shows a disturbance every second
+  // or two. Staying "unstable" for recentDisturbanceMs after the last one
+  // bridges those gaps, and — unconditional, not gated behind GPS being
+  // unavailable like the old untrustworthyGap was, which is what makes it
+  // catch the unmounted-while-driving case.
+  //
+  // Used for harsh-turn only, not hard-brake — see hardBrakeMinProportion's
+  // comment for why: confirmed from a real capture, 2026-10-13, that
+  // ordinary road vibration during NORMAL MOUNTED highway driving trips the
+  // same magnitude/reorientation disturbance gate every few seconds, not
+  // just continuous unmounted jostling does. Gating hard-brake on this long
+  // dwell cost 4 of 5 confirmed-real hard brakes in that capture — each one
+  // landed within recentDisturbanceMs of an earlier, unrelated road-noise
+  // blip despite the phone being properly mounted throughout. Harsh-turn
+  // has no equivalent proportionality cross-check and no confirmed true
+  // positive in any capture yet to protect, so the stronger blanket
+  // suppression stays there; hard-brake instead relies on per-sample
+  // `disturbed` (immediate, not lingering) plus hardBrakeMinProportion to
+  // tell a real brake from a jostled one.
+  const unstable =
+    justStarted ||
+    (state.lastInstabilityAt != null && now - state.lastInstabilityAt < th.recentDisturbanceMs);
 
   const speed = sample.speedMph;
-  if (speed != null) state.lastKnownSpeed = speed;
+  if (speed != null && speed !== state.lastKnownSpeed) {
+    // A genuinely new fix, not just another sample read against the same
+    // ~1Hz GPS value — see priorKnownSpeed's comment. Keep the pair so the
+    // real rate between them can be computed later, independent of how
+    // long any particular brake/turn candidate has been open.
+    if (state.lastKnownSpeed != null) {
+      state.priorKnownSpeed = state.lastKnownSpeed;
+      state.priorKnownSpeedAt = state.lastKnownSpeedAt;
+    }
+    state.lastKnownSpeed = speed;
+    state.lastKnownSpeedAt = now;
+  }
   const movingFastEnough = speed == null || speed >= th.minSpeedMph;
-  // See recentDisturbanceMs's comment: no GPS to corroborate with, combined
-  // with a recent sign the phone's orientation was actually disturbed (not
-  // just "no fix," which a tunnel produces too) — don't trust the
-  // accelerometer alone right now.
-  const untrustworthyGap =
-    speed == null &&
-    ((state.lastDisturbedAt != null && now - state.lastDisturbedAt < th.recentDisturbanceMs) ||
-      (state.lastSnapAt != null && now - state.lastSnapAt < th.recentDisturbanceMs));
 
   const events = [];
 
@@ -353,7 +471,7 @@ export function processSample(state, sample, opts = {}) {
   // one below) because of hardBrakeConfirmGraceMs: a qualified candidate has
   // to keep living, waiting on GPS, even after `over` itself goes false.
   const considerHardBrake = (over) => {
-    if (!warm || disturbed || untrustworthyGap || !movingFastEnough) {
+    if (!warm || disturbed || justStarted || !movingFastEnough) {
       resetBrakeCandidate();
       return;
     }
@@ -394,8 +512,32 @@ export function processSample(state, sample, opts = {}) {
     // moving. Lenient (let it through) when there was never an onset reading
     // at all, same philosophy as movingFastEnough.
     const onset = state.speedAtBrakeOnset;
-    const confirmed =
-      onset == null || (speed != null && onset - speed >= th.hardBrakeMinSpeedDropMph);
+    let confirmed = onset == null;
+    if (!confirmed && speed != null && onset - speed >= th.hardBrakeMinSpeedDropMph) {
+      confirmed = true; // the drop itself cleared the bar — proportion check may still downgrade it
+      // See hardBrakeMinProportion's comment: a nonzero drop isn't enough by
+      // itself — require it to be at least roughly in proportion to what the
+      // peak accelerometer reading claims, using the real rate between the
+      // last two distinct GPS fixes (not the brake candidate's own, often
+      // much shorter, duration). Lenient — same as above — when there isn't
+      // yet a distinct pair to compute a real rate from.
+      if (state.priorKnownSpeed != null && state.priorKnownSpeedAt != null) {
+        const gpsElapsedS = (state.lastKnownSpeedAt - state.priorKnownSpeedAt) / 1000;
+        if (gpsElapsedS > 0) {
+          const recentGpsMphPerS = (state.priorKnownSpeed - state.lastKnownSpeed) / gpsElapsedS;
+          const impliedAccelMphPerS = state.brakePeakMag * MPS2_TO_MPH_PER_S;
+          confirmed =
+            impliedAccelMphPerS <= 0 ||
+            recentGpsMphPerS / impliedAccelMphPerS >= th.hardBrakeMinProportion;
+        }
+      }
+    }
+    // See hardBrakeYawQuietMs's comment: applies regardless of GPS
+    // availability — a chaotically jostling phone with no GPS fix is still
+    // exactly the case this is meant to catch.
+    if (confirmed && state.lastHighYawAt != null) {
+      confirmed = now - state.lastHighYawAt >= th.hardBrakeYawQuietMs;
+    }
     if (!confirmed) {
       if (expired) resetBrakeCandidate();
       return;
@@ -408,7 +550,7 @@ export function processSample(state, sample, opts = {}) {
   };
 
   const considerHarshTurn = (over) => {
-    if (!warm || !over || !movingFastEnough || disturbed || untrustworthyGap) {
+    if (!warm || !over || !movingFastEnough || unstable) {
       state.overSince['harsh-turn'] = null;
       return;
     }
@@ -443,6 +585,7 @@ export function processSample(state, sample, opts = {}) {
       rawMag,
       reorientRateDegS,
       disturbed,
+      unstable,
       holdBrakeMs: state.overSince['hard-brake'] == null ? 0 : now - state.overSince['hard-brake'],
       holdYawMs: state.overSince['harsh-turn'] == null ? 0 : now - state.overSince['harsh-turn'],
     },

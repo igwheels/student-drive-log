@@ -73,6 +73,7 @@ function run(samples, thresholds) {
           `brake=${debug.smBrake.toFixed(2).padStart(6)} ` +
           `yaw=${debug.smYaw.toFixed(0).padStart(4)}` +
           (debug.disturbed ? '  [DISTURBED]' : '') +
+          (debug.unstable ? '  [UNSTABLE]' : '') +
           (evs.length ? `   <<< ${evs.map((e) => e.type).join(', ')}` : '')
       );
     }
