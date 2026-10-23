@@ -12,7 +12,7 @@ export default function TermsOfUse() {
       </button>
 
       <h2>Terms of Use</h2>
-      <p className="legal-updated">Last updated: February 2026</p>
+      <p className="legal-updated">Last updated: October 2026</p>
 
       <p>
         These Terms of Use ("Terms") govern your use of Student Drive Log (the "Service"), operated
