@@ -55,14 +55,26 @@ export default function TermsOfUse() {
 
       <h3>4. State requirement information</h3>
       <p>
-        The Service displays state supervised-driving requirements compiled from publicly available
-        sources, including the Insurance Institute for Highway Safety's Graduated Licensing Laws
-        table. These laws change, and our information may be incomplete or out of date. The
-        requirements shown are for general reference only. Always confirm current requirements with
-        your state's licensing agency.
+        The Service displays state supervised-driving requirements, specifically the total
+        supervised behind-the-wheel hours required during the learner stage and the portion (if
+        any) that must occur at night, licensed from the Insurance Institute for Highway Safety's
+        Graduated Licensing Laws table. These laws change, and our information may be incomplete or
+        out of date. The requirements shown do not constitute legal advice and are for general
+        reference only. Always confirm current requirements with your state's licensing agency.
       </p>
       <p className="legal-updated">
         Last synced to IIHS's table: {STATE_REQUIREMENTS_SYNCED_AT}.
+      </p>
+      <p>
+        Data licensed from{' '}
+        <a href="http://www.iihs.org/" target="_blank" rel="noopener noreferrer">
+          Insurance Institute for Highway Safety, Arlington, Virginia USA
+        </a>
+        .
+      </p>
+      <p>
+        Use of the Data from the Insurance Institute for Highway Safety does not constitute or
+        imply its endorsement, recommendation or approval of Student Drive Log or DevWorks, LLC.
       </p>
 
       <h3>5. Sharing dashboards with others</h3>

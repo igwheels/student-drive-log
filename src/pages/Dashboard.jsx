@@ -220,12 +220,25 @@ export default function Dashboard() {
       <p style={{ color: 'var(--muted)', marginTop: 2, marginBottom: 22 }}>{req.name}</p>
 
       {hasRequirement ? (
-        <div className="dash-panel">
-          <Gauge label="Total hours" value={totalMinutes} goal={req.totalHours * 60} color="#2F6FDE" />
-          {req.nightHours > 0 && (
-            <Gauge label="Night hours" value={nightMinutes} goal={req.nightHours * 60} color="#6C5CE7" />
-          )}
-        </div>
+        <>
+          <div className="dash-panel">
+            <Gauge label="Total hours" value={totalMinutes} goal={req.totalHours * 60} color="#2F6FDE" />
+            {req.nightHours > 0 && (
+              <Gauge label="Night hours" value={nightMinutes} goal={req.nightHours * 60} color="#6C5CE7" />
+            )}
+          </div>
+          {/* Required credit for the licensed hour-requirement figures above —
+              see the IIHS License Agreement's Acknowledgement provision
+              (Article 3.1): displayed near the Data itself, not just in the
+              Terms of Use, per "in all appropriate places." */}
+          <p style={{ fontSize: 13, color: 'var(--navy)', marginTop: 8 }}>
+            Hour requirements licensed from{' '}
+            <a href="http://www.iihs.org/" target="_blank" rel="noopener noreferrer">
+              Insurance Institute for Highway Safety, Arlington, Virginia USA
+            </a>
+            .
+          </p>
+        </>
       ) : (
         <div className="no-req-card">
           Your state of residence does not require a minimum number of supervised driving hours.

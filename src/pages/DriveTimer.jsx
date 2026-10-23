@@ -147,6 +147,10 @@ export default function DriveTimer() {
     if (telematicsEnabled()) {
       stopTelematics.current = startDriveTelematics({
         getSpeedMph: () => trackingRef.current?.speedMph ?? null,
+        // Stable across a resume (see useState above) so 'capture' mode's
+        // file-backed buffer appends to the same file instead of starting
+        // fresh after a mid-drive process kill — see telematics.js.
+        driveId: startTime.toISOString(),
         onEvent: ({ type }) => {
           pulseSafetyAlert();
           const key = type === 'harsh-turn' ? 'harshTurn' : 'hardBrake';

@@ -23,3 +23,8 @@ roadmap.md
 android/keystore.properties
 *.jks
 *.keystore
+
+# Signed/unsigned legal agreements — contains counterparties' contact info
+# and signatures; this repo is public. Keep locally or in the private
+# igwheels/student-driver-log-notes repo instead (see roadmap.md above).
+docs/licenses/

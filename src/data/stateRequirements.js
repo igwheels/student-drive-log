@@ -1,7 +1,24 @@
 /**
  * Supervised driving requirements by state.
  * Source: IIHS Graduated Licensing Laws table (October 2026).
- * https://www.iihs.org/topics/teenagers/graduated-licensing-laws-table
+ * https://www.iihs.org/research-areas/teenagers/graduated-licensing-laws-table
+ *
+ * Used under a License Agreement with IIHS (kept locally under
+ * docs/licenses/, gitignored — this repo is public, and the agreement
+ * carries both parties' contact info and signatures; unsigned draft as of
+ * 2026-10-22, replace with the countersigned copy once returned). Only the
+ * two figures below
+ * (totalHours, nightHours) are licensed — no other IIHS text, tables, or
+ * charts are reproduced. The agreement requires, everywhere this Data is
+ * shown: (1) the credit "Insurance Institute for Highway Safety, Arlington,
+ * Virginia USA" linking to http://www.iihs.org/ (TermsOfUse.jsx §4,
+ * Dashboard.jsx, AddStudent.jsx); (2) the disclaimer that this isn't legal
+ * advice and users should check their state's laws (all three places
+ * already did this before the agreement, independently); (3) the
+ * non-endorsement disclaimer sentence (TermsOfUse.jsx §4); (4) dating the
+ * product via STATE_REQUIREMENTS_SYNCED_AT below. Do not add any other IIHS
+ * content (text, tables, charts) without going back to IIHS for an amended
+ * agreement — the license is scoped to exactly these two numeric fields.
  *
  * totalHours: minimum supervised behind-the-wheel hours in the learner stage.
  * nightHours: portion that must occur at night (0 = no night requirement).

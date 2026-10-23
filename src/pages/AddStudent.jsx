@@ -149,16 +149,13 @@ export default function AddStudent() {
       </form>
 
       {req && (
-        <p style={{ color: 'var(--muted)', fontSize: 12, marginTop: 20 }}>
-          * Requirements sourced from the{' '}
-          <a
-            href="https://www.iihs.org/topics/teenagers/graduated-licensing-laws-table"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            IIHS Graduated Licensing Laws table
+        <p style={{ color: 'var(--navy)', fontSize: 13, marginTop: 20 }}>
+          Hour requirements licensed from{' '}
+          <a href="http://www.iihs.org/" target="_blank" rel="noopener noreferrer">
+            Insurance Institute for Highway Safety, Arlington, Virginia USA
           </a>{' '}
-          (last synced {STATE_REQUIREMENTS_SYNCED_AT}). Laws change — verify with your state DMV.
+          (last synced {STATE_REQUIREMENTS_SYNCED_AT}). This isn't legal advice — laws change, verify
+          current requirements with your state's licensing agency.
         </p>
       )}
 
