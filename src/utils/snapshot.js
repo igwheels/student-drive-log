@@ -13,6 +13,8 @@
 // can't take back. Maps stay in the app, where they're behind auth and only
 // visible to the dashboard's owner and people it's explicitly shared with.
 
+import { Capacitor } from '@capacitor/core';
+
 function encode(type, data) {
   const json = JSON.stringify({ t: type, d: data });
   // Route UTF-8 bytes through btoa, which only handles Latin1 — needed since
@@ -31,9 +33,22 @@ function decode(b64) {
   }
 }
 
+// Inside the native shell, window.location.origin is "capacitor://localhost"
+// (iOS/Android WKWebView/WebView serving the bundled build from its own local
+// root) — a scheme no recipient's device or browser can open. There's no
+// origin to read there that would produce a working link, so native builds
+// always point at the real published web app instead; browsers (where
+// location.origin + BASE_URL is already correct — see vite.config.js's base
+// comment) keep using the current origin so this also works from a local or
+// staging deploy without hardcoding those.
+const PUBLIC_APP_URL = 'https://sdl.devworksllc.com/app/';
+
 function snapshotUrl(type, data) {
   const b64 = encode(type, data);
-  return `${window.location.origin}${import.meta.env.BASE_URL}#/snapshot?d=${encodeURIComponent(b64)}`;
+  const base = Capacitor.isNativePlatform()
+    ? PUBLIC_APP_URL
+    : `${window.location.origin}${import.meta.env.BASE_URL}`;
+  return `${base}#/snapshot?d=${encodeURIComponent(b64)}`;
 }
 
 export function buildDashboardSnapshotUrl({
