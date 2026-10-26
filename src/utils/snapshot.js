@@ -41,7 +41,7 @@ function decode(b64) {
 // location.origin + BASE_URL is already correct — see vite.config.js's base
 // comment) keep using the current origin so this also works from a local or
 // staging deploy without hardcoding those.
-const PUBLIC_APP_URL = 'https://sdl.devworksllc.com/app/';
+export const PUBLIC_APP_URL = 'https://sdl.devworksllc.com/app/';
 
 function snapshotUrl(type, data) {
   const b64 = encode(type, data);

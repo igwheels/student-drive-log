@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { getSharePlatform } from '../utils/device';
-import { shareContent, hasNativeShare } from '../utils/share';
+import { shareContent, hasNativeShare, defaultShareUrl } from '../utils/share';
 import ShareLinksMenu from './ShareLinksMenu';
 
 function IOSShareIcon() {
@@ -59,7 +59,7 @@ export default function ShareButton({ title, text, url }) {
   const handleCopyLink = async () => {
     setMenuOpen(false);
     try {
-      await navigator.clipboard.writeText(url || window.location.href);
+      await navigator.clipboard.writeText(url || defaultShareUrl());
       showCopiedToast();
     } catch (err) {
       console.error('Copy to clipboard failed:', err);

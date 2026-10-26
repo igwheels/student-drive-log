@@ -1,5 +1,16 @@
 import { Capacitor } from '@capacitor/core';
 import { getSharePlatform } from './device';
+import { PUBLIC_APP_URL } from './snapshot';
+
+// Pages that don't hand ShareButton an explicit url (e.g. the student list,
+// Account) fall through to this. window.location.href is "capacitor://..."
+// inside the native shell — not a link anyone outside the app can open — so
+// native always shares the real published app instead; browsers keep sharing
+// whatever page is actually open.
+export function defaultShareUrl() {
+  if (Capacitor.isNativePlatform()) return PUBLIC_APP_URL;
+  return typeof window !== 'undefined' ? window.location.href : '';
+}
 
 /** True when the device offers a native share sheet, false everywhere else
  * (desktop browsers, some Android WebViews) — that's when explicit
@@ -20,7 +31,7 @@ export function hasNativeShare() {
 // share sheet when available, falling back to copying the link with an
 // onCopied callback the caller can use to show a toast.
 export async function shareContent({ title, text, url }, { onCopied } = {}) {
-  const shareUrl = url || window.location.href;
+  const shareUrl = url || defaultShareUrl();
   const shareData = { title: title || document.title, text, url: shareUrl };
 
   if (hasNativeShare()) {
@@ -52,7 +63,7 @@ export async function shareContent({ title, text, url }, { onCopied } = {}) {
 // than guessing a single form that half of users would silently drop the
 // pre-filled text on.
 export function buildShareLinks({ title, text, url }) {
-  const shareUrl = url || (typeof window !== 'undefined' ? window.location.href : '');
+  const shareUrl = url || defaultShareUrl();
   const subject = title || (typeof document !== 'undefined' ? document.title : '');
   const body = [text, shareUrl].filter(Boolean).join('\n\n');
   const smsSeparator = getSharePlatform() === 'ios' ? '&' : '?';
