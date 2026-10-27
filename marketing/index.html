@@ -50,8 +50,13 @@
       .hero {
         background: linear-gradient(180deg, var(--bg) 0%, var(--bg-light) 100%);
         text-align: center;
-        padding: 64px 20px 56px;
+        padding: 64px 0 56px;
       }
+      /* Same max-width + horizontal padding as main/footer below, so the
+         hero's content shares their left/right edges instead of being its
+         own independently-centered, narrower column — the gradient
+         background on .hero itself stays full-bleed. */
+      .hero-inner { max-width: 720px; margin: 0 auto; padding: 0 22px; }
       .hero img { width: 96px; height: 96px; border-radius: 22px; }
       .hero h1 { font-size: 1.9rem; margin: 20px 0 8px; }
       .hero p { color: var(--muted); max-width: 440px; margin: 0 auto; font-size: 1.05rem; }
@@ -99,17 +104,19 @@
   </head>
   <body>
     <div class="hero">
-      <img src="/icon.png" alt="Student Drive Log" />
-      <h1>Student Drive Log</h1>
-      <p>Track a teen driver's supervised practice hours—and print a pre-filled DMV form when they're ready to test.</p>
+      <div class="hero-inner">
+        <img src="/icon.png" alt="Student Drive Log" />
+        <h1>Student Drive Log</h1>
+        <p>Track a teen driver's supervised practice hours—and print a pre-filled DMV form when they're ready to test.</p>
 
-      <div class="badges">
-        <a class="badge" href="https://apps.apple.com/app/id6816531193" target="_blank" rel="noopener noreferrer">
-          <img src="/images/app-store-badge.svg" alt="Download on the App Store" />
-        </a>
-        <a class="badge" href="https://play.google.com/store/apps/details?id=com.devworksllc.sdl" target="_blank" rel="noopener noreferrer">
-          <img src="/images/google-play-badge.png" alt="Get it on Google Play" />
-        </a>
+        <div class="badges">
+          <a class="badge" href="https://apps.apple.com/app/id6816531193" target="_blank" rel="noopener noreferrer">
+            <img src="/images/app-store-badge.svg" alt="Download on the App Store" />
+          </a>
+          <a class="badge" href="https://play.google.com/store/apps/details?id=com.devworksllc.sdl" target="_blank" rel="noopener noreferrer">
+            <img src="/images/google-play-badge.png" alt="Get it on Google Play" />
+          </a>
+        </div>
       </div>
     </div>
 
