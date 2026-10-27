@@ -61,8 +61,22 @@
       .hero h1 { font-size: 1.9rem; margin: 20px 0 8px; }
       .hero p { color: var(--muted); max-width: 440px; margin: 0 auto; font-size: 1.05rem; }
 
-      .badges { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; margin-top: 32px; }
+      /* Equal 1fr columns, same shape as .features below — the gap always
+         sits at the exact container midpoint regardless of gap size, same
+         as the features grid's gutter. A flex row centered as a group (the
+         previous approach) doesn't: the Apple and Google badges are
+         different pixel widths, so the visual gap between them lands
+         off-center by however much those widths differ, and doesn't line
+         up with the features grid's gutter below it. */
+      .badges { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 32px; }
       .badge { display: inline-flex; height: 54px; }
+      /* Hug the center gutter from each side (like the feature boxes do)
+         rather than centering independently within each column — the badges
+         aren't the same pixel width, so centering each in its own column
+         left the visual gap between them a few px off the grid's actual
+         gutter. This pins the gap to exactly match it. */
+      .badge:first-child { justify-self: end; }
+      .badge:last-child { justify-self: start; }
       /* .hero img (the app icon above) sets width/border-radius for a square
          icon — override both here, since CSS cascades per-property and a
          later rule of equal specificity only wins the properties it sets. */
