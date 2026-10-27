@@ -18,11 +18,15 @@
       .github/workflows/deploy.yml, which assembles the two together at
       publish time (this folder is copied in as-is; dist/ lands under app/).
 
-      Store badges below are placeholders (plain text in a badge-shaped box)
-      until the iOS and Android apps are actually live — replace the <a>
-      contents with Apple's/Google's real badge images and real store links
-      at that point. Keep the data-section--badges markup/ids intact if you
-      do, since nothing else depends on them.
+      Store badges: official Apple/Google badge assets, self-hosted per each
+      platform's branding guidelines (Apple doesn't allow hotlinking theirs;
+      Google's can be hotlinked but it's kept local here for consistency) —
+      see marketing/images/. App Store link carries the real App Store
+      Connect app id (6816531193). The Play Store link is deterministic from
+      the package name (com.devworksllc.sdl) and was wired in ahead of
+      publishing — see src/utils/share.js's defaultShareUrl for the same
+      link — so it 404s until the Android app is actually live, with no
+      further change needed once it is.
     -->
     <style>
       :root {
@@ -53,24 +57,11 @@
       .hero p { color: var(--muted); max-width: 440px; margin: 0 auto; font-size: 1.05rem; }
 
       .badges { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; margin-top: 32px; }
-      .badge {
-        display: inline-flex;
-        flex-direction: column;
-        align-items: flex-start;
-        justify-content: center;
-        gap: 2px;
-        width: 180px;
-        height: 54px;
-        padding: 0 16px;
-        border: 1px solid var(--line);
-        border-radius: 10px;
-        background: var(--panel);
-        color: var(--muted);
-        text-decoration: none;
-        font-size: 0.78rem;
-      }
-      .badge strong { color: var(--text); font-size: 1rem; }
-      .badge.disabled { opacity: 0.6; cursor: default; }
+      .badge { display: inline-flex; height: 54px; }
+      /* .hero img (the app icon above) sets width/border-radius for a square
+         icon — override both here, since CSS cascades per-property and a
+         later rule of equal specificity only wins the properties it sets. */
+      .badge img { width: auto; height: 100%; border-radius: 0; }
 
       main { max-width: 720px; margin: 0 auto; padding: 48px 22px 20px; }
       .features {
@@ -113,13 +104,11 @@
       <p>Track a teen driver's supervised practice hours—and print a pre-filled DMV form when they're ready to test.</p>
 
       <div class="badges">
-        <a class="badge disabled" href="#" aria-disabled="true" onclick="return false">
-          Coming soon to the
-          <strong>App Store</strong>
+        <a class="badge" href="https://apps.apple.com/app/id6816531193" target="_blank" rel="noopener noreferrer">
+          <img src="/images/app-store-badge.svg" alt="Download on the App Store" />
         </a>
-        <a class="badge disabled" href="#" aria-disabled="true" onclick="return false">
-          Coming soon on
-          <strong>Google Play</strong>
+        <a class="badge" href="https://play.google.com/store/apps/details?id=com.devworksllc.sdl" target="_blank" rel="noopener noreferrer">
+          <img src="/images/google-play-badge.png" alt="Get it on Google Play" />
         </a>
       </div>
     </div>
