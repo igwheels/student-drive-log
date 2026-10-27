@@ -1,22 +1,25 @@
 import { Capacitor } from '@capacitor/core';
 import { getSharePlatform } from './device';
-import { PUBLIC_APP_URL } from './snapshot';
 
-// App Store Connect app id 6816531193 (reserved pre-release). No Play Store
-// listing yet — Android keeps sharing the web app below until one exists.
+// App Store Connect app id 6816531193 (reserved pre-release).
 const APP_STORE_URL = 'https://apps.apple.com/app/id6816531193';
+// Play Store listing URL is deterministic from the package name and stable
+// even before publishing — this will 404 until the app is live on a public
+// or open-testing track, but needs no code change once it is.
+const PLAY_STORE_URL = 'https://play.google.com/store/apps/details?id=com.devworksllc.sdl';
 
 // Pages that don't hand ShareButton an explicit url (e.g. the student list,
 // Account) fall through to this — it's "share the app itself," not a page.
-// On iOS that means the App Store listing rather than the web app, since
-// that's the link worth handing someone who doesn't have the app yet; on
-// Android (no Play Store listing yet) and in the browser, window.location.href
-// is "capacitor://..." inside the native shell — not a link anyone outside
-// the app can open — so native falls back to the published web app instead,
-// and the browser keeps sharing whatever page is actually open.
+// That means the app's store listing rather than the web app, since that's
+// the link worth handing someone who doesn't have the app yet. In the
+// browser, window.location.href is "capacitor://..." inside the native
+// shell — not a link anyone outside the app can open — so the browser keeps
+// sharing whatever page is actually open, while native always shares a store
+// listing.
 export function defaultShareUrl() {
-  if (Capacitor.getPlatform() === 'ios') return APP_STORE_URL;
-  if (Capacitor.isNativePlatform()) return PUBLIC_APP_URL;
+  const platform = Capacitor.getPlatform();
+  if (platform === 'ios') return APP_STORE_URL;
+  if (platform === 'android') return PLAY_STORE_URL;
   return typeof window !== 'undefined' ? window.location.href : '';
 }
 
